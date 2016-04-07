@@ -33,6 +33,7 @@ a Sciencedirect URL.
 """
 
 import sys
+import os
 
 #TODO: Move this into a compatability module
 #-----------------------------------------------------
@@ -44,6 +45,7 @@ else:
     from urllib.parse import unquote as urllib_unquote
 #-----------------------------------------------------
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import get_class_list_display_string as cld
 
@@ -344,15 +346,25 @@ class ScienceDirectRef(object):
 
 
         self.ref_tags = ref_tags
+        findVal = self.findVal
 
- 
-        find = self._findValue 
+        #
+        #
+        #   Line here: find = self._findValue
+        #       Throwing errors, because ScienceDirectRef does not have a _findValue attribute
+        #
+        #
+
+        #find = self._findValue
+
+        #findVal = ref_tags.find()
+
         #Reference Bibliography Section: 
         #-------------------------------
         #Example str: <span class="r_volume">Volume 47</span>
-        self.ref_id      = ref_id + 1 #Input is 0 based
-        self.title       = find('li','reference-title')  
-        self.authors = find('li','reference-author')
+        self.ref_id = ref_id + 1 #Input is 0 based
+        self.title = findVal(ref_tags, 'li','reference-title')
+        self.authors = findVal(ref_tags, 'li','reference-author')
         #NOTE: We can also get individual authors if we would like.
         #        
         #   Search would be on: 
@@ -363,24 +375,24 @@ class ScienceDirectRef(object):
         #the publication. Some custom code is needed to first go into a r_series
         #span and then to the publication
         self.publication = None
-        r_source_tag = ref_tags.find('span',{'class':'r_series'})
+        r_source_tag = findVal(ref_tags, 'span',{'class':'r_series'})
 
         if r_source_tag is not None:
             pub_tag = r_source_tag.find('span',{'class':'r_publication'})
             if pub_tag is not None:
                 self.publication = pub_tag.text      
 
-        temp_volume      = find('span','r_volume')
+        temp_volume      = findVal(ref_tags, 'span','r_volume')
         if temp_volume is None:
             self.volume = None
         else:
             self.volume = temp_volume.replace('Volume ','')
             
-        self.issue  = find('span','r_issue')
-        self.series = find('span','r_series')
-        self.date   = find('span','r_pubdate')
+        self.issue  = findVal(ref_tags, 'span','r_issue')
+        self.series = findVal(ref_tags, 'span','r_series')
+        self.date   = findVal(ref_tags, 'span','r_pubdate')
         
-        temp_pages  = find('span','r_pages')
+        temp_pages  = findVal(ref_tags, 'span','r_pages')
         if temp_pages is None:
             self.pages = None
         else:
@@ -390,7 +402,7 @@ class ScienceDirectRef(object):
         
         #Reference Meta Section:
         #-----------------------        
-        link_soup = BeautifulSoup(ref_link_info)      
+        link_soup = BeautifulSoup(ref_link_info)
         
         #Each section is contained a div tag with the class boxLink, although
         #some classes have more text in the class attribute, thus the *)
@@ -405,10 +417,17 @@ class ScienceDirectRef(object):
         
         #This code is a bit hard to read but each 'if statement' shows what
         #is needed in order to resolve the item.
+        print "number of links: " + str(len(box_links))
         for box_link in box_links:
-            
+            #print "box_link: " + str(box_link)
+            #print box_link.text
             div_class_values = box_link.attrs['class']
+            #print "div_class_values: " + str(div_class_values)
             link_tag = box_link.find('a')
+            print "link_tag: " + str(link_tag)
+            print "link_tag.attrs: " + str(link_tag.attrs)
+            #if 'class' in link_tag.attrs:
+            #    print "HELLO YES THIS IS HERE\n"
             if 'SC_record' in div_class_values:
                 #"View Record in Scopus"
                 #They changed to returning a full link
@@ -416,14 +435,15 @@ class ScienceDirectRef(object):
                 #although the input should be the current page, not the base
                 #self.scopus_link = _SD_URL + link_tag.attrs['href']
                 self.scopus_link = link_tag.attrs['href']
-            elif 'S_C_pdfLink' in link_tag.attrs['class']:
-                #Link to PDF
-                self.pdf_link = _SD_URL + link_tag.attrs['href']
-            elif 'cLink' in link_tag.attrs['class']:
-                #Article Link
-                temp     = link_tag.attrs['href']
-                match    = re.search('/pii/(.*)',temp)
-                self.pii = match.group(1)
+            elif 'class' in link_tag.attrs:
+                if 'S_C_pdfLink' in link_tag.attrs['class']:
+                    #Link to PDF
+                    self.pdf_link = _SD_URL + link_tag.attrs['href']
+                elif 'cLink' in link_tag.attrs['class']:
+                    #Article Link
+                    temp     = link_tag.attrs['href']
+                    match    = re.search('/pii/(.*)',temp)
+                    self.pii = match.group(1)
             elif 'Full Text via CrossRef' in link_tag.text:
                 #CrossRef link provides DOI as href
                 #In old code it was a query parameter but this
@@ -433,6 +453,8 @@ class ScienceDirectRef(object):
                 match = re.search('dx\.doi\.org/(.*)',temp)
                 #Unquote removes %xx escape characters
                 self.doi = urllib_unquote(match.group(1))
+            elif "Purchase" in box_link.text:
+                pass
             else:
                 span_tag = link_tag.find('span')
                 if 'citedBy_' in span_tag.attrs['class']:
@@ -443,8 +465,8 @@ class ScienceDirectRef(object):
                     #do this only if all else fails.
                     self._data_sceid   = span_tag.attrs['data-sceid']
                 else:
-                    #import pdb
-                    #pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
                     raise Exception('Failed to match link')
 
     
@@ -474,7 +496,7 @@ class ScienceDirectRef(object):
     
   
     
-    def get_simple_string():
+    def get_simple_string(self):
         #TODO: Implement
         #The goal is to represent the object as a single string
         #Essentially as a citation
@@ -496,7 +518,36 @@ class ScienceDirectRef(object):
         '              doi: %s\n' % self.doi + \
         '              pii: %s\n' % self.pii + \
         '         pdf_link: %s\n' % td(self.pdf_link) + \
-        'scopus_cite_count: %s\n' % self.scopus_cite_count    
+        'scopus_cite_count: %s\n' % self.scopus_cite_count
+
+    def findVal(self,tags,tag_name,class_name):
+        """
+        This is a small helper that is used to pull out values from a tag
+        given the value of the tags class attribute. See the example.
+
+        Parameters:
+        -----------
+        tag_name : str
+            Tag name or type, such as 'li','span', or 'div'
+        class_name : str
+            Used for selecting a specific value
+        ref_tags : bs4.element.Tag
+
+        Example:
+        --------
+        #Our goal is to extract: Can. J. Physiol. Pharmacol.
+        #One of the tags is:
+        <span class="r_publication">Can. J. Physiol. Pharmacol.</span>
+
+        self._findValue('span','r_publication')
+
+        """
+
+        temp = tags.find(tag_name,{'class':class_name})
+        if temp is None:
+            return None
+        else:
+            return temp.text
         
         
 def ReferenceParser(object):
@@ -592,6 +643,7 @@ def get_references(pii,verbose=False):
         #priveleges to access the data we want. Generally this is protected via
         #IP mask. When I'm working from home I need to VPN into work so
         #that I can access the data :/
+        print "reference_section is None"
         temp = soup.find(*GUEST_TAG_TUPLE)
         if temp is None:
             #We might have no references ... (Doubtful)
@@ -599,7 +651,7 @@ def get_references(pii,verbose=False):
         else:
             raise errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
     
-    ref_tags = reference_section.find_all(*REFERENCE_TAG_TUPLE)    
+    ref_tags = reference_section.find_all(*REFERENCE_TAG_TUPLE)
     
     n_refs = len(ref_tags)
     
@@ -636,7 +688,7 @@ def get_references(pii,verbose=False):
         #I'm not sure if it is important to limit this. The browser then 
         #makes a request fromr 1 count 20, 21 count 20, 41 count 20 etc, 
         #It always goes by 20 even if there aren't 20 left
-    
+
     if verbose:
         print('Requesting reference links')  
     r2 = s.get(REF_RESOLVER_URL,params=payload)    
@@ -677,7 +729,7 @@ def get_references(pii,verbose=False):
         print('Creating reference objects')  
     ref_objects = [ScienceDirectRef(ref_tag,ref_link_info[1],ref_id) for \
                     ref_tag,ref_link_info,ref_id in \
-                    zip(ref_tags,ref_match_result,range(n_refs))]     
+                    zip(ref_tags,ref_match_result,range(n_refs))]
 
 
     #Step 4:

@@ -40,6 +40,7 @@ from pypub import elsevier as evil
 evil.search_scienceDirect('Mountcastle')
 """
 
+'''
 from pypub import elsevier as evil
 
 evil.search_scopus('PMID(18430976)')
@@ -52,6 +53,7 @@ eid = '2-s2.0-84896533932'
 raw_refs = evil.get_raw_references_from_eid(eid)
 
 evil.parse_raw_references(raw_refs)
+'''
 
 
 """
@@ -59,7 +61,7 @@ evil.parse_raw_references(raw_refs)
 """
 from pypub.scrapers import sciencedirect as sd 
 
-refs = sd.get_references('0006899387903726')
+refs = sd.get_references('0006899387903726', verbose=True)
 """
 from pypub.scrapers import jneuroscience as jn
 

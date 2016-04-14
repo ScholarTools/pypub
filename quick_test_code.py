@@ -62,6 +62,7 @@ evil.parse_raw_references(raw_refs)
 from pypub.scrapers import sciencedirect as sd 
 
 refs = sd.get_references('0006899387903726', verbose=True)
+print refs
 """
 from pypub.scrapers import jneuroscience as jn
 

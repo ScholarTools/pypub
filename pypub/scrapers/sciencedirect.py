@@ -417,17 +417,12 @@ class ScienceDirectRef(object):
         
         #This code is a bit hard to read but each 'if statement' shows what
         #is needed in order to resolve the item.
-        print "number of links: " + str(len(box_links))
         for box_link in box_links:
             #print "box_link: " + str(box_link)
             #print box_link.text
             div_class_values = box_link.attrs['class']
             #print "div_class_values: " + str(div_class_values)
             link_tag = box_link.find('a')
-            print "link_tag: " + str(link_tag)
-            print "link_tag.attrs: " + str(link_tag.attrs)
-            #if 'class' in link_tag.attrs:
-            #    print "HELLO YES THIS IS HERE\n"
             if 'SC_record' in div_class_values:
                 #"View Record in Scopus"
                 #They changed to returning a full link
@@ -454,6 +449,7 @@ class ScienceDirectRef(object):
                 #Unquote removes %xx escape characters
                 self.doi = urllib_unquote(match.group(1))
             elif "Purchase" in box_link.text:
+                # New link added to Purchase pdf. It was throwing errors
                 pass
             else:
                 span_tag = link_tag.find('span')
@@ -465,8 +461,8 @@ class ScienceDirectRef(object):
                     #do this only if all else fails.
                     self._data_sceid   = span_tag.attrs['data-sceid']
                 else:
-                    import pdb
-                    pdb.set_trace()
+                    #import pdb
+                    #pdb.set_trace()
                     raise Exception('Failed to match link')
 
     
@@ -501,12 +497,13 @@ class ScienceDirectRef(object):
         #The goal is to represent the object as a single string
         #Essentially as a citation
         pass
-        
+
+    '''
     def __repr__(self):
         return u'' + \
         '           ref_id: %s\n' % self.ref_id +\
         '            title: %s\n' % td(self.title) + \
-        '          authors: %s\n' % self.all_authors + \
+        '          authors: %s\n' % self.authors + \
         '      publication: %s\n' % self.publication + \
         '           volume: %s\n' % self.volume +\
         '            issue: %s\n' % self.issue + \
@@ -519,6 +516,25 @@ class ScienceDirectRef(object):
         '              pii: %s\n' % self.pii + \
         '         pdf_link: %s\n' % td(self.pdf_link) + \
         'scopus_cite_count: %s\n' % self.scopus_cite_count
+    '''
+
+    # Trying to pinpoint the errors being thrown when I print using the full __repr__
+    # Narrowed it down to the first error in the title of reference 34
+    # The two errors being thrown are: "'ascii' codec can't encode chararcter u'\u2032" which is ′ (in a subscript in
+    #   the title) or "'ascii' codec can't decode byte 0xe2" which apparently is â, not even in the title. That second
+    #   one happens when I use .encode('utf-8') as below. The first happens when I use .decode('utf-8')
+    # Here is the link to the paper if you want to look at references yourself: http://www.sciencedirect.com/science/article/pii/0006899387903726
+    def __repr__(self):
+        if self.title is None:
+            self.title = ''
+        else:
+            self.title = self.title.encode('utf-8')
+        return u'' + \
+        '           ref_id: %s\n' % self.ref_id + \
+        '            title: %s\n' % td(self.title)
+
+
+
 
     def findVal(self,tags,tag_name,class_name):
         """

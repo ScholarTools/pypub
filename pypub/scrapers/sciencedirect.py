@@ -23,8 +23,6 @@ refs = sd.get_references('S1042368013000776',verbose=True)
 df = refs[0].to_data_frame(refs)
 
 
-
-
 Currently I am building something that allows extraction of references from
 a Sciencedirect URL.
 
@@ -37,10 +35,10 @@ import os
 
 #TODO: Move this into a compatability module
 #-----------------------------------------------------
-PY2 = int(sys.version[0]) == 2
+PY2 = sys.version_info.major == 2
 
 if PY2:
-    from urllib2 import unquote as urllib_unquote
+    from urllib3 import unquote as urllib_unquote
 else:
     from urllib.parse import unquote as urllib_unquote
 #-----------------------------------------------------
@@ -61,15 +59,15 @@ from bs4 import BeautifulSoup
 _SD_URL = 'http://www.sciencedirect.com'
 
 class ScienceDirectAuthorAffiliations(object):
-    
+
     def __init__(self,li_tag):
         self.id = li_tag['id']
         self.raw = li_tag.contents[1]
 
     def __repr__(self):
         return u'' + \
-        ' id: %s\n' % self.id + \
-        'raw: %s\n' % td(self.raw)      
+        ' id: %s, ' % self.id + \
+        'raw: %s\n' % self.raw
 
 class ScienceDirectAuthor(object):
     
@@ -91,26 +89,26 @@ class ScienceDirectAuthor(object):
         
         
         """
-        #class="author-group" id="augrp0010"
-        #author small
-        #author medium last 
+        # class="author-group" id="augrp0010"
+        # author small
+        # author medium last
         
-        #<li class='Author medium last" data-refs="cor1" id="au3">
-        #<a class='icon-correspondance-author'
-        #<a class="icon-email-author"       
+        # <li class='Author medium last" data-refs="cor1" id="au3">
+        # <a class='icon-correspondance-author'
+        # <a class="icon-email-author"
         #
-        #class="author-affiliations" id="augrp0010"
+        # class="author-affiliations" id="augrp0010"
         #   class="affiliation" id="aff1"        
         
-        #1) Get text that is not in sup DONE
-        #2) Grab data-refs "aff1,aff2,etc" DONE
-        #3) 
+        # 1) Get text that is not in sup DONE
+        # 2) Grab data-refs "aff1,aff2,etc" DONE
+        # 3)
         
-        #1st bit of text is the name, then we hav
+        # 1st bit of text is the name, then we have
         self.raw = li_tag.contents[0] 
         self._data_refs = re.compile('[^\S]+').split(li_tag['data-refs'])
-        #This is a list:
-        #http://www.crummy.com/software/BeautifulSoup/bs4/doc/#multi-valued-attributes
+        # This is a list:
+        # http://www.crummy.com/software/BeautifulSoup/bs4/doc/#multi-valued-attributes
         self._class = li_tag['class']
     
     def populate_affiliations(self,aff_objs):
@@ -118,19 +116,18 @@ class ScienceDirectAuthor(object):
 
     def __repr__(self):
         return u'' + \
-        '         raw: %s\n' % self.raw + \
-        'affiliations: %s\n' % cld(self.affiliations)    
+                'name: %s, ' % self.raw + \
+        'affiliations: %s\n' % self.affiliations[0].raw
 
 class ScienceDirectEntry(object):
     
     """
-    
     This could be a step above the reference since it would, for example,
     contain all authors on a paper    
     
     Attributes
     ----------
-    pi : string
+    pii : string
         The unique identifier
         
     See Also
@@ -156,7 +153,7 @@ class ScienceDirectEntry(object):
         self.url = url
         
         #We're grabbing everything after the last '/'
-        self.pii = re.search('[^/]+$',self.url).group(0)
+        self.pii = re.search('[^pii/]+$',self.url).group(0)
 
 
         #Web page retrieval
@@ -168,54 +165,53 @@ class ScienceDirectEntry(object):
        
         if verbose:
             print('Requesting main page for pii: %s' % self.pii)
-            
+
+        # Using the mobile version of ScienceDirect
+        # This is to avoid dynamically loading page features on the desktop site
+        # and because the mobile site has more cleanly organized information
         r = s.get(url,cookies={'Site':'Mobile'})
         
         soup = BeautifulSoup(r.text)
         
         self.soup = soup
-        
-        #TODO: Can we wrap this with a parse expection?
-        #i.e. consolidate these lines?
+
+        # This div and id are mobile site specific
         article_abstract = soup.find('div',id='article-abstract')
-        
         if article_abstract is None:
             raise errors.ParseException('Unable to find abstract section of page')
-        
 
         
-        #Things to get:
+        # Things to get:
         #--------------
-        self.publication = self._findValue(article_abstract,'a','publication-title')
+        self.publication = self._findValue(article_abstract,'a','publication-title', 'class')
         
-        self.date = self._findValue(article_abstract,'span','cover-date')
-        #TODO: Extract year        
+        self.date = self._findValue(article_abstract,'span','cover-date', 'class')
+        self.year = self.date[-4:]
         
-        temp = self._findValue(article_abstract,'p','publication-volume-issue')        
-        #'January 2014, Vol.25(1):33–46, doi:10.1016/j.nec.2013.08.001'
-        #The volume and issue are not accessible individually
-        #We can get , Vol.25(1) from the first anchor tag text inside of 
-        #the acnhor tag that is not in the span (which is self.date)        
+        temp = self._findValue(article_abstract,'p','publication-volume-issue', 'class')
+        self.volume = re.findall(', (.*?):', temp, re.DOTALL)
+        self.volume = self.volume[0]
+
+
+        self.first_page = self._findValue(article_abstract,'span','first-page', 'class')
+        self.last_page = self._findValue(article_abstract,'span','last-page', 'class')
+        self.pages = self.first_page + "-" + self.last_page
+        # special_issue #p,publication-special-issue
+
         
-        #self.issue = 
-        self.first_page = self._findValue(article_abstract,'span','first-page')
-        self.last_page = self._findValue(article_abstract,'span','last-page')
-        #special_issue #p,publication-special-issue
-        #
-        
-        #DOI retrieval
+        # DOI retrieval
         #-------------
-        #Could also graph href inside of the class and strip http://dx.doi.org/
-        #This might be more reliable than assuming we have doi:asdfasdf
-        self.doi = self._findValue(article_abstract,'span','article-doi')
+        # Could also graph href inside of the class and strip http://dx.doi.org/
+        # This might be more reliable than assuming we have doi:asdfasdf
+        self.doi = self._findValue(article_abstract,'span','article-doi', 'class')
         if self.doi is not None:
             self.doi = self.doi[4:] #doi:asdfasdfasdf => remove 'doi":'
             
-        self.title = self._findValue(article_abstract,'h1','article-title')
-        #Authors:
+        self.title = self._findValue(article_abstract,'h1','article-title', 'class')
+        # Authors:
         #-------
-        #Look for <li> tags with class="author*"
-        #TODO: Can move compiling to initialization
+        # Look for <li> tags with class="author*"
+        # TODO: Can move compiling to initialization
         self.authors = [ScienceDirectAuthor(x) for x in article_abstract.find_all('li',class_=re.compile('^author'))]
 
         aff_tags = article_abstract.find_all('li',class_='affiliation label')
@@ -223,50 +219,59 @@ class ScienceDirectEntry(object):
         
         for author in self.authors:
             author.populate_affiliations(self.affiliations)
+
+        #import pdb
+        #pdb.set_trace()
         
         keyword_tags = article_abstract.find_all('li',{'class':'article-keyword'})
         self.keywords = [x.text for x in keyword_tags]
-        
-        import pdb
-        pdb.set_trace()
+
         
     def __repr__(self):
         return u'' + \
         '      title: %s\n' % td(self.title) + \
-        '    authors: %s\n' % 'TODO' + \
+        '    authors: %s\n' % self.authors + \
+        '   keywords: %s\n' % self.keywords + \
         'publication: %s\n' % self.publication + \
         '       date: %s\n' % self.date + \
-        '        doi: %s\n' % '1'
+        '     volume: %s\n' % self.volume + \
+        '      pages: %s\n' % self.pages + \
+        '        doi: %s\n' % self.doi
 
 
-    def _findValue(self,tags,tag_name,class_name):
+    def _findValue(self, tags, tag_name, label_name, label_type):
         """
         This is a small helper that is used to pull out values from a tag
-        given the value of the tags class attribute. See the example.
-        
+        given the value of the tags class or id attribute. See the example.
+
         Parameters:
         -----------
         tag_name : str
             Tag name or type, such as 'li','span', or 'div'
         class_name : str
             Used for selecting a specific value
-        ref_tags : bs4.element.Tag
-            
+        label_type: str
+            Used to differentiate between 'class' or 'id' labels
+        tags : bs4.element.Tag
+
         Example:
         --------
-        #Our goal is to extract: Can. J. Physiol. Pharmacol.
-        #One of the tags is:
+        # Our goal is to extract: Can. J. Physiol. Pharmacol.
+        # One of the tags is:
         <span class="r_publication">Can. J. Physiol. Pharmacol.</span>
-        
+
         self._findValue('span','r_publication')
-            
+
         """
-        
-        temp = tags.find(tag_name,{'class':class_name})
+        if label_type.lower() == 'class':
+            temp = tags.find(tag_name, {'class':label_name})
+        elif label_type.lower() == 'id':
+            temp = tags.find(tag_name, {'id':label_name})
+
         if temp is None:
             return None
         else:
-            return temp.text  
+            return temp.text
 
     @classmethod
     def from_pii(pii):
@@ -348,16 +353,6 @@ class ScienceDirectRef(object):
         self.ref_tags = ref_tags
         findVal = self.findVal
 
-        #
-        #
-        #   Line here: find = self._findValue
-        #       Throwing errors, because ScienceDirectRef does not have a _findValue attribute
-        #
-        #
-
-        #find = self._findValue
-
-        #findVal = ref_tags.find()
 
         #Reference Bibliography Section: 
         #-------------------------------
@@ -375,10 +370,10 @@ class ScienceDirectRef(object):
         #the publication. Some custom code is needed to first go into a r_series
         #span and then to the publication
         self.publication = None
-        r_source_tag = findVal(ref_tags, 'span',{'class':'r_series'})
+        r_source_tag = findVal(ref_tags, 'span','r_series')
 
         if r_source_tag is not None:
-            pub_tag = r_source_tag.find('span',{'class':'r_publication'})
+            pub_tag = r_source_tag.find('span','r_publication')
             if pub_tag is not None:
                 self.publication = pub_tag.text      
 
@@ -418,8 +413,8 @@ class ScienceDirectRef(object):
         #This code is a bit hard to read but each 'if statement' shows what
         #is needed in order to resolve the item.
         for box_link in box_links:
-            #print "box_link: " + str(box_link)
-            #print box_link.text
+            #print("box_link: " + str(box_link))
+            #print(box_link.text)
             div_class_values = box_link.attrs['class']
             #print "div_class_values: " + str(div_class_values)
             link_tag = box_link.find('a')
@@ -498,14 +493,14 @@ class ScienceDirectRef(object):
         #Essentially as a citation
         pass
 
-    '''
+
     def __repr__(self):
         return u'' + \
-        '           ref_id: %s\n' % self.ref_id +\
+        '           ref_id: %s\n' % self.ref_id + \
         '            title: %s\n' % td(self.title) + \
         '          authors: %s\n' % self.authors + \
         '      publication: %s\n' % self.publication + \
-        '           volume: %s\n' % self.volume +\
+        '           volume: %s\n' % self.volume + \
         '            issue: %s\n' % self.issue + \
         '           series: %s\n' % self.series + \
         '             date: %s\n' % self.date + \
@@ -516,23 +511,6 @@ class ScienceDirectRef(object):
         '              pii: %s\n' % self.pii + \
         '         pdf_link: %s\n' % td(self.pdf_link) + \
         'scopus_cite_count: %s\n' % self.scopus_cite_count
-    '''
-
-    # Trying to pinpoint the errors being thrown when I print using the full __repr__
-    # Narrowed it down to the first error in the title of reference 34
-    # The two errors being thrown are: "'ascii' codec can't encode chararcter u'\u2032" which is ′ (in a subscript in
-    #   the title) or "'ascii' codec can't decode byte 0xe2" which apparently is â, not even in the title. That second
-    #   one happens when I use .encode('utf-8') as below. The first happens when I use .decode('utf-8')
-    # Here is the link to the paper if you want to look at references yourself: http://www.sciencedirect.com/science/article/pii/0006899387903726
-    def __repr__(self):
-        if self.title is None:
-            self.title = ''
-        else:
-            self.title = self.title.encode('utf-8')
-        return u'' + \
-        '           ref_id: %s\n' % self.ref_id + \
-        '            title: %s\n' % td(self.title)
-
 
 
 
@@ -588,7 +566,7 @@ def get_references(pii,verbose=False):
     
     Implementation Notes:
     ---------------------
-    From what I can tell this information is not exposed via the ElSevier API.
+    From what I can tell this information is not exposed via the Elsevier API.
     
     In order to minimize complexity, the mobile site is requested: via a cookie.
 
@@ -597,45 +575,45 @@ def get_references(pii,verbose=False):
     Code Layout and Algorithm Notes:
     --------------------------------
     
-    
-    TODO: Finish this
-    - get references, extra step after page
-    - get reference counts, extra step after references
-    
     """
 
+    # TODO: Finish this
+    # - get references, extra step after page
+    # - get reference counts, extra step after references
+
+
     
 
-    #TODO: Move this to ScienceDirectEntry - I'm thinking of makign this its own
-    #class as well
+    # TODO: Move this to ScienceDirectEntry - I'm thinking of making this its own
+    # class as well
     #
-    #TODO: Make this a class reference parser
+    # TODO: Make this a class reference parser
 
-    #*** These tags are mobile-site specific
+    # *** These tags are mobile-site specific
 
-    #If you view the references, they should be wrapped by an <ol> tag
-    #with the attribute class="article-references"    
+    # If you view the references, they should be wrapped by an <ol> tag
+    # with the attribute class="article-references"
     REFERENCE_SECTION_TAG_TUPLE =  ("ol",{"class":"article-references"})
     
-    #When we don't have proper access rights, this is present in the html
+    # When we don't have proper access rights, this is present in the html
     GUEST_TAG_TUPLE = ("li",{"id":"menuGuest"})
     
-    #Entries are "li" tags with classes of the form:
+    # Entries are "li" tags with classes of the form:
     #   article-reference-article
     #   article-reference-other-ref
     REFERENCE_TAG_TUPLE = ("li",{"class":re.compile('article-reference-*')})
     
-    #This is the URL to the page that contains the document info, including
-    #reference material
+    # This is the URL to the page that contains the document info, including
+    # reference material
     BASE_URL = _SD_URL + '/science/article/pii/'
     
-    #This URL was found first via Fiddler, then via closer inspection of the script
-    #'article_catalyst.js' under sciencedirect.com/mobile/js in the function
-    #resolveReferences
+    # This URL was found first via Fiddler, then via closer inspection of the script
+    # 'article_catalyst.js' under sciencedirect.com/mobile/js in the function
+    # resolveReferences
     REF_RESOLVER_URL = _SD_URL + '/science/referenceResolution/ajaxRefResol'
     
 
-    #Step 1 - Make the request
+    # Step 1 - Make the request
     #--------------------------------------------------------------------------
       
     s = requests.Session()    
@@ -645,21 +623,21 @@ def get_references(pii,verbose=False):
     r = s.get(BASE_URL +  pii,cookies={'Site':'Mobile'})
     
     
-    #Step 2 - Get the references tags
+    # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
-    #The reference tags contain most of the information about references
-    #They are however missing a lot of the linking information
-    #e.g. link to the article, pdf download, etc
+    # The reference tags contain most of the information about references
+    # They are however missing a lot of the linking information
+    # e.g. link to the article, pdf download, etc
     soup = BeautifulSoup(r.text)
     
     reference_section = soup.find(*REFERENCE_SECTION_TAG_TUPLE)  
     
     if reference_section is None:
-        #Then we might be a guest. In other words, we might not have sufficient
-        #priveleges to access the data we want. Generally this is protected via
-        #IP mask. When I'm working from home I need to VPN into work so
-        #that I can access the data :/
-        print "reference_section is None"
+        # Then we might be a guest. In other words, we might not have sufficient
+        # privileges to access the data we want. Generally this is protected via
+        # IP mask. When I'm working from home I need to VPN into work so
+        # that I can access the data :/
+        print("reference_section is None")
         temp = soup.find(*GUEST_TAG_TUPLE)
         if temp is None:
             #We might have no references ... (Doubtful)
@@ -674,18 +652,18 @@ def get_references(pii,verbose=False):
     if n_refs == 0:
         return None
     
-    #Step 3 - Resolve reference links
+    # Step 3 - Resolve reference links
     #--------------------------------------------------------------------------
-    #The returned html code contains javascript which returns more information
-    #about each reference, such as:
+    # The returned html code contains javascript which returns more information
+    # about each reference, such as:
     #
     #   - links to the full text
     #   - DOI   
     
     
-    #Step 3.1 - Make the request for the information
+    # Step 3.1 - Make the request for the information
     #--------------------------------------------------------------------------    
-    #We need the eid of the current entry, it is of the form: 
+    # We need the eid of the current entry, it is of the form:
     #
     #   SDM.pm.eid = "1-s2.0-0006899387903726"
     #
@@ -694,7 +672,7 @@ def get_references(pii,verbose=False):
     match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"',r.text)
     eid   = match.group(1)
     
-    #This list comes from the resolveReferences function in article_catalyst.js
+    # This list comes from the resolveReferences function in article_catalyst.js
     payload = {
         '_eid'           : eid,
         '_refCnt'        : n_refs,
@@ -827,3 +805,6 @@ def _update_counts(s,eids,resolve_url):
     """
     #TODO: go through refs and apply new values ...  
     
+
+def get_entry_info(url):
+    return ScienceDirectEntry(url, verbose=True)

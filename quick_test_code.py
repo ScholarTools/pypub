@@ -56,13 +56,26 @@ evil.parse_raw_references(raw_refs)
 '''
 
 
-"""
 
-"""
-from pypub.scrapers import sciencedirect as sd 
+from pypub.scrapers import sciencedirect as sd
 
+'''
 refs = sd.get_references('0006899387903726', verbose=True)
-print refs
+print(refs[0])
+'''
+'''
+entry = sd.get_entry_info('http://www.sciencedirect.com/science/article/pii/0006899387903726')
+print(entry)
+'''
+
+from pypub.scrapers import wiley as wy
+entry = wy.get_entry_info('http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/references')
+print(entry)
+
+refs = wy.get_references('10.1111/j.1464-4096.2004.04875.x', verbose=True)
+print(refs[0])
+
+
 """
 from pypub.scrapers import jneuroscience as jn
 

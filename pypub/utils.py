@@ -7,6 +7,7 @@ Generic code for other code
 """
 
 import inspect
+from bs4 import BeautifulSoup
 
 def get_class_list_display_string(input_list):
     if len(input_list) == 0:
@@ -19,9 +20,44 @@ def get_truncated_display_string(input_string,max_length = 50):
     if input_string is None:
         return None 
     elif len(input_string) > max_length:
-        return input_string[:max_length] + '...'
+        return str(input_string[:max_length]) + '...'
     else:
         return input_string
+
+def findValue(tags, tag_name, label_name, label_type):
+        """
+        This is a small helper that is used to pull out values from a tag
+        given the value of the tags class or id attribute. See the example.
+
+        Parameters:
+        -----------
+        tag_name : str
+            Tag name or type, such as 'li','span', or 'div'
+        label_name : str
+            Used for selecting a specific value
+        label_type: str
+            Used to differentiate between 'class' or 'id' labels
+        tags : bs4.element.Tag
+
+        Example:
+        --------
+        # Our goal is to extract: Can. J. Physiol. Pharmacol.
+        # One of the tags is:
+        <span class="r_publication">Can. J. Physiol. Pharmacol.</span>
+
+        self._findValue('span','r_publication')
+
+        """
+        if label_type.lower() == 'class':
+            temp = tags.find(tag_name, {'class':label_name})
+        elif label_type.lower() == 'id':
+            temp = tags.find(tag_name, {'id':label_name})
+
+        if temp is None:
+            return None
+        else:
+            return temp.text
+
 
 def assign_props_with_function(obj,d_obj,prop_key_info):
     

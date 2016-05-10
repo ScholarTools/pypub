@@ -6,11 +6,8 @@ Module: pypub.scrapers.wiley
 
 Status: In progress
 
-#TODO: Add a verbose printout so I can see what's happening
-#TODO: Profile usage, why is this sooooooo slow
 #TODO: Add tests, this stuff will break!
 #TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
-
 
 
 Tasks/Examples:
@@ -40,19 +37,18 @@ PY2 = sys.version_info.major == 2
 
 if PY2:
     from urllib3 import unquote as urllib_unquote
+    from urllib3 import quote as urllib_quote
 else:
     from urllib.parse import unquote as urllib_unquote
+    from urllib.parse import quote as urllib_quote
 #-----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
-from ..utils import get_class_list_display_string as cld
 from ..utils import findValue
 
 from .. import errors
 
-import pandas as pd
-import urllib
 import re
 #-------------------
 import requests
@@ -243,38 +239,24 @@ class WileyRef(object):
     publication : string
         Abbreviated (typically?) form of the journal
     volume : string
-    issue
-    series
     date : string
-        This appears to always be the year but I'm not sure. More
-    pages
-
-    scopus_link       = None
+        This appears to always be the year
     doi : string
         Digital Object Identifier. May be None if not present. This is
         currently based on the presence of a link to fulltext via Crossref.
-    _data_sceid       = None
-        I believe this is the Scopus ID
     pii               = None
         This is the ID used to identify an article on ScienceDirect.
         See also: https://en.wikipedia.org/wiki/Publisher_Item_Identifier
     pdf_link : string (default None)
         If not None, this link points to the pdf of the article.
-    scopus_cite_count = None
 
-    Improvements
-    ------------
-    1) Allow resolving the DOI via the pii
-    2) Some references are not parsed properly by SD. As such the raw
-    information should be stored as well in those cases, along with a flag
-    indicating that this has occurred (e.g. see #71 for pii: S1042368013000776)
 
 
     See Also:
     get_references
 
     """
-    def __init__(self, ref_tags, ref_link_info, ref_id):
+    def __init__(self, ref_tags, ref_id):
 
         """
 
@@ -283,9 +265,6 @@ class WileyRef(object):
         ref_tags: bs4.element.Tag
             Html tags as soup of the reference. Information provided is that
             needed in order to form a citation for the given reference.
-        ref_link_info: str
-            Html, not yet souped. Contains extra information such as links to
-            a pdf (if known) and other goodies
         ref_id: int
             The id of the reference as ordered in the citing entry. A value
             of 1 indicates that this object is the first reference in the bibliography.
@@ -294,6 +273,105 @@ class WileyRef(object):
         """
 
         self.ref_tags = ref_tags
+
+        # Reference Bibliography Section:
+        #--------------------------------
+        self.ref_id = ref_id + 1 # Input is 0 indexed
+        self.title = findValue(ref_tags, 'span', 'articleTitle', 'class')
+        authorlist = ref_tags.find_all('span', 'author', 'class')
+        self.authors = [x.text for x in authorlist]
+
+        # Note: we can also get individual authors if we would like.
+        #
+        # On Wiley, each reference author is given a separate <span> tag with the class 'author'
+        # so individual authors can be extracted
+        #
+
+        self.publication = findValue(ref_tags, 'span', 'journalTitle', 'class')
+        self.volume = findValue(ref_tags, 'span', 'vol', 'class')
+        self.date = findValue(ref_tags, 'span', 'pubYear', 'class')
+
+        firstp = findValue(ref_tags, 'span', 'pageFirst', 'class')
+        lastp = findValue(ref_tags, 'span', 'pageLast', 'class')
+        self.pages = firstp + '-' + lastp
+
+
+        # Reference Meta Section:
+        #------------------------------
+
+        self.crossref = None
+        self.pubmed = None
+        self.pubmed_id = None
+        self.doi = None
+        self.citetimes = None
+        self.cas = None
+        self.abstract = None
+        self.pdf_link = None
+        self.ref_references = None
+
+        # External links (i.e. PubMed, CrossRef, CAS) are kept in a ul tag
+        # Internal links (i.e. direct to abstract, references, etc.) are in a div
+        # Need to check for both
+        links = ref_tags.find('ul', 'externalReferences', 'class')
+        if links is None:
+            links = ref_tags.find('div', 'internalReferences', 'class')
+
+        # Only proceed if either internal or external references were found
+        if links is not None:
+            links = links.find_all('li')
+
+            # Check against all possible link options and save links.
+            # href links are appended onto base URL ('http://onlinelibrary.wiley.com')
+            #
+            # NOTE: links are returned URL encoded (using urllib.quote(), but DOI
+            # and PubMed IDs are not encoded. This means that if extracting the DOI
+            # from one of the returned URLs, it needs to be first unquoted.
+            #
+            for link in links:
+                label = link.text.lower()
+                href = link.find('a', href=True)['href']
+                href = urllib_quote(href)
+
+                if 'crossref' in label:
+                    self.doi = re.search('[^id=]+$',href).group(0)
+                    self.doi = urllib_unquote(self.doi)[1:] # The [1:] is to get rid of the first '='
+                    self.crossref = _WY_URL + href
+                elif 'pubmed' in label:
+                    self.pubmed_id = re.search('[^id=]+$',href).group(0)
+                    self.pubmed_id = urllib_unquote(self.pubmed_id)[1:]
+                    self.pubmed = _WY_URL + href
+                elif 'web ' in label:
+                    self.citetimes = re.search('[^: ]+$',label).group(0)
+                elif label in ('cas', 'cas,'):
+                    self.cas = _WY_URL + href
+                elif 'abstract' in label:
+                    self.abstract = _WY_URL + href
+                elif 'pdf' in label:
+                    self.pdf_link = _WY_URL + href
+                elif 'references' in label:
+                    self.ref_references = _WY_URL + href
+
+
+    def __repr__(self):
+        return u'' + \
+        '                    ref_id: %s\n' % self.ref_id + \
+        '                     title: %s\n' % td(self.title) + \
+        '                   authors: %s\n' % self.authors + \
+        '               publication: %s\n' % self.publication + \
+        '                    volume: %s\n' % self.volume + \
+        '                      date: %s\n' % self.date + \
+        '                     pages: %s\n' % self.pages + \
+        '               pubmed_link: %s\n' % self.pubmed + \
+        '                 pubmed_id: %s\n' % self.pubmed_id + \
+        '             crossref_link: %s\n' % self.crossref + \
+        '                  CAS_link: %s\n' % self.cas + \
+        '             abstract_link: %s\n' % self.abstract + \
+        '           references_link: %s\n' % self.ref_references + \
+        '                  pdf_link: %s\n' % self.pdf_link + \
+        '                       doi: %s\n' % self.doi + \
+        'web of science times cited: %s\n' % self.citetimes
+
+
 
 
 def get_references(pii, verbose=False):
@@ -312,14 +390,7 @@ def get_references(pii, verbose=False):
     ---------------------
     From what I can tell this information is not exposed via the Elsevier API.
 
-    In order to minimize complexity, the mobile site is requested: via a cookie.
-
     """
-
-    # TODO: Finish this
-    # - get references, extra step after page
-    # - get reference counts, extra step after references
-
 
     # TODO: Move this to WileyEntry - I'm thinking of making this its own
     # class as well
@@ -339,21 +410,12 @@ def get_references(pii, verbose=False):
     # Hopefully this doesn't grab other random list items on the page
     REFERENCE_TAG = ('li', {'id' : re.compile('b*')})
 
-
-
     # This is the URL to the page that contains the document info, including
     # reference material
     BASE_URL = _WY_URL + '/doi/'
 
     # Ending with the references listed
     SUFFIX = '/references'
-
-    '''
-    # This URL was found first via Fiddler, then via closer inspection of the script
-    # 'article_catalyst.js' under sciencedirect.com/mobile/js in the function
-    # resolveReferences
-    REF_RESOLVER_URL = _SD_URL + '/science/referenceResolution/ajaxRefResol'
-    '''
 
 
     # Step 1 - Make the request
@@ -394,156 +456,21 @@ def get_references(pii, verbose=False):
     if n_refs == 0:
         return None
 
-    '''
-    # Step 3 - Resolve reference links
+
+    # Step 3 - Create reference objects
     #--------------------------------------------------------------------------
-
-    # Step 3.1 - Make the request for the information
-    #--------------------------------------------------------------------------
-    # We need the eid of the current entry, it is of the form:
-    #
-    #   SDM.pm.eid = "1-s2.0-0006899387903726"
-    #
-    #   * I think this entry gets deleted after the requests so it may not be
-    #   visible  if looking for it in Chrome.
-    match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"',r.text)
-    eid   = match.group(1)
-
-    # This list comes from the resolveReferences function in article_catalyst.js
-    payload = {
-        '_eid'           : eid,
-        '_refCnt'        : n_refs,
-        '_docType'       : 'article',
-        '_refRangeStart' : '1',
-        '_refRangeCount' : str(n_refs)} #This is normally in sets of 20's ...
-        #I'm not sure if it is important to limit this. The browser then
-        #makes a request fromr 1 count 20, 21 count 20, 41 count 20 etc,
-        #It always goes by 20 even if there aren't 20 left
-
-    if verbose:
-        print('Requesting reference links')
-    #r2 = s.get(REF_RESOLVER_URL,params=payload)
-
-    #Step 3.2 - Parse the returned information into single entries
-    #--------------------------------------------------------------------------
-    #This could probably be optimized in terms of execution time. We basically
-    #get back a single script tag. Inside is some sort of hash map for links
-    #for each reference.
-    #
-    #The script tag is of the form:
-    #   myMap['bibsbref11']['refHtml']= "<some html stuffs>";
-    #   myMap['bibsbref11']['absUrl']= "http://www.sciencedirect.com/science/absref/sd/0018506X7790068X";
-    #   etc.
-    #
-    #   - Each entry is quite long.
-    #   - Normally contains html
-    #   - can be empty i.e. myMap['bibsbref11']['refHtml'] = "";
-    #   - the refHtml is quite interesting
-    #   - the absolute url is not always present (and currently not parsed)
-    more_soup   = BeautifulSoup(r2.text)
-    script_tag  = more_soup.find('script')
-
-    # We unquote the script text as it is transmitted with characters escaped
-    # and we want the parsed data to contain the non-escaped text
-    #
-    # We might eventually want to move this to being after the regular expression ...
-    script_text = urllib_unquote(script_tag.text)
-
-    ref_match_result = re.findall("myMap\['bibsbref(\d+)'\]\['refHtml'\]=\s?" + '"([^"]*)";',script_text)
-    '''
-
-    # Tokens:
-    # 0 - the # from bibsbref#
-    # 1 - the html content from the 'refHtml' entry
-    #
-    # NOTE: We don't really use the #, so we might remove the () around
-    # \d+ which would shift the index from 1 to 0
+    # The reference objects parse out information for each reference
+    # as well as external links.
     if verbose:
         print('Creating reference objects')
-    ref_objects = [WileyRef(ref_tag,ref_link_info[1],ref_id) for \
-                    ref_tag,ref_link_info,ref_id in \
-                    zip(ref_tags,ref_match_result,range(n_refs))]
-
-
-    #Step 4:
-    #--------------------------------------------------------------------------
-    #TODO: Improve documentation for this step
-
-    if verbose:
-        print('Retrieving Scopus Counts')
-
-    ref_scopus_eids  = [] #The Scopus IDs of the references to resolve
-    #but with a particular formatting ...
-    ref_count = 0 #Number of references we haven't resolved
-
-    ref_count_list = []
-    #NOTE: Browser requests these in the reverse order ...
-    for ref_id, ref in enumerate(ref_objects):
-
-        if ref._data_sceid is not None:
-            ref_scopus_eids.append(ref._data_sceid + ',' + str(ref_id+1) + '~')
-            ref_count += 1
-
-            #If we've got enough, then update the counts
-            #The 20 may be arbitrary but it was what was used in original JS
-            if ref_count > 20:
-                ref_count_list += _update_counts(s,ref_scopus_eids,REF_RESOLVER_URL)
-                ref_count = 0
-                ref_scopus_eids  = []
-
-    #Get any remaining reference counts
-    if ref_count != 0:
-         ref_count_list += _update_counts(s,ref_scopus_eids,REF_RESOLVER_URL)
-
-    #Take the raw data and set the citation count for each object
-    for ref_tuple in ref_count_list:
-        ref_id    = int(ref_tuple[0]) - 1
-        ref_count = int(ref_tuple[1])
-        ref_objects[ref_id].scopus_cite_count = ref_count
+    ref_objects = [WileyRef(ref_tag, ref_id) for \
+                    ref_tag, ref_id in \
+                    zip(ref_tags, range(n_refs))]
 
 
     #All done!
     #---------
     return ref_objects
-
-
-def _update_counts(s,eids,resolve_url):
-
-    """
-    Helper for get_references()
-
-    Parameters
-    ----------
-    s : Session
-        The Requests Session
-    eids : list
-        List of eids but with a particular format
-        e.g. ... TODO
-    resolve_url : string
-        This is a hardcoded value, eventually we'll pull this from the class
-
-    Returns
-    -------
-    """
-    payload = {'_updateCitedBy' : ''.join(eids)}
-    r = s.get(resolve_url,params=payload)
-    #TODO: Check for 200
-    data = urllib_unquote(r.text)
-
-    #myXabsCounts['citedBy_26']='Citing Articles (41)';
-    cited_by_results = re.findall("myXabsCounts\['citedBy_(\d+)'\]='[^\(]+\((\d+)",data)
-
-    return cited_by_results
-    #TODO: parse response
-    #????? Why is the order scrambled - this seems to be on their end ...????
-    """
-    NOTE: This is now Citing Articles, references to Scopus have been dropped
-    myXabsCounts['citedBy_16']='Cited By in Scopus (128)';
-    myXabsCounts['citedBy_15']='Cited By in Scopus (25)';
-    myXabsCounts['citedBy_1']='Cited By in Scopus (2)';
-    myXabsCounts['citedBy_3']='Cited By in Scopus (29)';
-    """
-    #TODO: go through refs and apply new values ...
 
 
 def get_entry_info(url):

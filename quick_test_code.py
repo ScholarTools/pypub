@@ -73,7 +73,8 @@ entry = wy.get_entry_info('http://onlinelibrary.wiley.com/doi/10.1111/j.1464-409
 print(entry)
 
 refs = wy.get_references('10.1111/j.1464-4096.2004.04875.x', verbose=True)
-print(refs[0])
+print('%i references returned' % len(refs))
+print(refs)
 
 
 """

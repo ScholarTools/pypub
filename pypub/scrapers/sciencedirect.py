@@ -413,10 +413,7 @@ class ScienceDirectRef(object):
         #This code is a bit hard to read but each 'if statement' shows what
         #is needed in order to resolve the item.
         for box_link in box_links:
-            #print("box_link: " + str(box_link))
-            #print(box_link.text)
             div_class_values = box_link.attrs['class']
-            #print "div_class_values: " + str(div_class_values)
             link_tag = box_link.find('a')
             if 'SC_record' in div_class_values:
                 #"View Record in Scopus"
@@ -505,7 +502,6 @@ class ScienceDirectRef(object):
         '           series: %s\n' % self.series + \
         '             date: %s\n' % self.date + \
         '            pages: %s\n' % self.pages + \
-        '           volume: %s\n' % self.volume + \
         '      scopus_link: %s\n' % td(self.scopus_link) + \
         '              doi: %s\n' % self.doi + \
         '              pii: %s\n' % self.pii + \

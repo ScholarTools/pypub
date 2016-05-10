@@ -12,7 +12,7 @@ packages that people might be interested in.
 
 
 
-#Pubmed testing
+#Pubmed
 #===================================================== 
 if False: 
     from pypub import pubmed as pm
@@ -56,10 +56,11 @@ evil.parse_raw_references(raw_refs)
 '''
 
 
-
+# Science Direct
+#=====================================================
+'''
 from pypub.scrapers import sciencedirect as sd
 
-'''
 refs = sd.get_references('0006899387903726', verbose=True)
 print(refs[0])
 '''
@@ -68,28 +69,41 @@ entry = sd.get_entry_info('http://www.sciencedirect.com/science/article/pii/0006
 print(entry)
 '''
 
+# Wiley
+#=====================================================
+
 from pypub.scrapers import wiley as wy
-entry = wy.get_entry_info('http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/references')
+
+wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
+wiley_pii = '10.1002/biot.201400046'
+
+entry = wy.get_entry_info(wiley_link, verbose=True)
 print(entry)
 
-refs = wy.get_references('10.1111/j.1464-4096.2004.04875.x', verbose=True)
+refs = wy.get_references(wiley_pii, verbose=True)
 print('%i references returned' % len(refs))
-print(refs)
+print(refs[0])
+'''
 
+# New example with more recent article
+wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/bit.25159/abstract'
+wiley_pii = '10.1002/bit.25159'
+
+entry = wy.get_entry_info(wiley_link, verbose=True)
+print(entry)
+
+refs = wy.get_references(wiley_pii, verbose=True)
+print('%i references returned' % len(refs))
+print(refs[0])
+'''
 
 """
 from pypub.scrapers import jneuroscience as jn
 
-refs = jn.get_references('http://www.jneurosci.org/content/23/10/4355.long#ref-list-1') 
-
-import pdb
-pdb.set_trace()
+refs = jn.get_references('http://www.jneurosci.org/content/23/10/4355.long#ref-list-1')
 
 #sd.get_references('0006899367901205')
 """
-
-
-
 
 
 

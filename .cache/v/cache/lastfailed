@@ -1,0 +1,9 @@
+{
+  "pypub/pubmed_test.py::TestPubmedFunctions::test_search_with_less_results": true, 
+  "pypub/pubmed_test.py::TestPubmedFunctions::test_search_with_null_parameter": true, 
+  "pypub/pubmed_test.py::TestPubmedFunctions::test_search_with_plus": true, 
+  "pypub/pubmed_test.py::TestPubmedFunctions::test_search_with_query_limited_to_field": true, 
+  "pypub/pubmed_test.py::TestPubmedFunctions::test_search_with_sort": true, 
+  "pypub/pubmed_test.py::TestPubmedFunctions::test_search_with_spaces": true, 
+  "pypub/scraper_tests/wiley_scraper_test.py": true
+}

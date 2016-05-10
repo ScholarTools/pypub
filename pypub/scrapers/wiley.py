@@ -36,8 +36,8 @@ import os
 PY2 = sys.version_info.major == 2
 
 if PY2:
-    from urllib3 import unquote as urllib_unquote
-    from urllib3 import quote as urllib_quote
+    from urllib import unquote as urllib_unquote
+    from urllib import quote as urllib_quote
 else:
     from urllib.parse import unquote as urllib_unquote
     from urllib.parse import quote as urllib_quote
@@ -140,7 +140,8 @@ class WileyEntry(object):
 
         # Extract the DOI from the URL
         # Get everything between 'onlinelibrary.wiley.com/doi/' and '/abstract'
-        self.pii = re.findall('doi/(.*?)/abstract', self.url, re.DOTALL)
+        pii = re.findall('doi/(.*?)/abstract', self.url, re.DOTALL)
+        self.pii = pii[0]
 
         # Web page retrieval
         #-------------------
@@ -158,9 +159,23 @@ class WileyEntry(object):
         soup = BeautifulSoup(r.text)
         self.soup = soup
 
-        mainContent = soup.find('div', id='mainContent')
+        #
+        # Some newer journals/articles are using an updated, minimalistic page layout.
+        # This isn't compatible with the HTML tags of the old version, so we need to
+        # check for that and use the old site view if necessary.
+        #
+        backlink = soup.find('a', {'id' : 'wol1backlink'})
+        if backlink is not None:
+            url = _WY_URL + '/wol1/doi/' + self.pii + '/abstract'
+            r = s.get(url)
+            soup = BeautifulSoup(r.text)
+
+
+
+        mainContent = soup.find('div', {'id' : 'mainContent'})
         if mainContent is None:
             raise errors.ParseException('Unable to find main content of page')
+
 
 
         # Metadata:
@@ -182,8 +197,12 @@ class WileyEntry(object):
         self.pages = self.pages[6:] # to get rid of 'pages: ' at the beginning
 
         # TODO: Fix this keyword stuff
-        keybox = soup.find('div', id='productContent')
-        self.keywords = findValue(keybox, 'ul', 'keywordList', 'class')
+        keybox = soup.find('ul', {'class' : 'keywordList'})
+        #if keybox is None:
+        #    raise errors.ParseException('Unable to find keywords')
+        #wordlist = keybox.find_all('li')
+        #self.keywords = [w.text for w in wordlist]
+        self.keywords = None
 
         #import pdb
         #pdb.set_trace()
@@ -293,7 +312,8 @@ class WileyRef(object):
 
         firstp = findValue(ref_tags, 'span', 'pageFirst', 'class')
         lastp = findValue(ref_tags, 'span', 'pageLast', 'class')
-        self.pages = firstp + '-' + lastp
+        if (firstp is not None) and (lastp is not None):
+            self.pages = firstp + '-' + lastp
 
 
         # Reference Meta Section:
@@ -426,13 +446,25 @@ def get_references(pii, verbose=False):
         print('Requesting main page for pii: %s' % pii)
     r = s.get(BASE_URL +  pii + SUFFIX)
 
+    soup = BeautifulSoup(r.text)
+
+    #
+    # Some newer journals/articles are using an updated, minimalistic page layout.
+    # This isn't compatible with the HTML tags of the old version, so we need to
+    # check for that and use the old site view if necessary.
+    #
+    backlink = soup.find('a', {'id' : 'wol1backlink'})
+    if backlink is not None:
+        url = _WY_URL + '/wol1/doi/' + pii + '/references'
+        r = s.get(url)
+        soup = BeautifulSoup(r.text)
+
 
     # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
     # The reference tags contain most of the information about references
     # They are however missing a lot of the linking information
     # e.g. link to the article, pdf download, etc
-    soup = BeautifulSoup(r.text)
 
     reference_section = soup.find(*REFERENCE_SECTION_TAG)
 
@@ -473,5 +505,5 @@ def get_references(pii, verbose=False):
     return ref_objects
 
 
-def get_entry_info(url):
-    return WileyEntry(url, verbose=True)
+def get_entry_info(url, verbose=False, session=None):
+    return WileyEntry(url, verbose, session)

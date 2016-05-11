@@ -1,0 +1,3 @@
+provider_abbrev,provider_root_url,need_mobile,req_cookies,article_page_link,page_type,dynamically_loaded,fulltext_link,pdf_link,recommended_articles,references_link,entry_info_tag,references_tag
+sd,http://sciencedirect.com,y,cookies={'Site':'Mobile'},root/science/article/pii/[PII],one_page,y,n,y,y,root/science/article/pii/[PII],"'div', {'id' : 'article-abstract'}","'ol', {'class' : 'article-references'}"
+wy,http://onlinelibrary.wiley.com,n,,root/doi/[DOI]/abstract,tabbed,n,y,y,n,root/doi/[DOI]/references,"'div', {'id' : 'mainContent'}","'div', {'class' : 'bibliography'}"

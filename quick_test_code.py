@@ -61,10 +61,13 @@ evil.parse_raw_references(raw_refs)
 '''
 from pypub.scrapers import sciencedirect as sd
 
-entry = sd.get_entry_info('http://www.sciencedirect.com/science/article/pii/0006899387903726')
+sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
+sd_pii = '0006899387903726'
+
+entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
 
-refs = sd.get_references('0006899387903726', verbose=True)
+refs = sd.get_references(sd_pii, verbose=True)
 print(refs[0])
 '''
 

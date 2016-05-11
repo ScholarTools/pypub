@@ -460,11 +460,11 @@ def get_references(pii, verbose=False):
 
     # If you view the references, they should be wrapped by a <ul> tag
     # with the attribute class="article-references"
-    REFERENCE_SECTION_TAG =  ('div', 'bibliography', 'class')
+    REFERENCE_SECTION_TAG =  ('div', {'class' : 'bibliography'})
 
     # TODO: check what this guest tag actually looks like
     # When we don't have proper access rights, this is present in the html
-    GUEST_TAG = ('li', 'menuGuest', 'id')
+    GUEST_TAG = ('li', {'id' : 'menuGuest'})
 
     # Entries are "li" tags with ids of the form:
     #   b1, b2, b3, etc.

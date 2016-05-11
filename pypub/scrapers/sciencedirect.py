@@ -26,8 +26,6 @@ df = refs[0].to_data_frame(refs)
 Currently I am building something that allows extraction of references from
 a Sciencedirect URL.
 
-
-
 """
 
 import sys
@@ -38,14 +36,16 @@ import os
 PY2 = sys.version_info.major == 2
 
 if PY2:
-    from urllib3 import unquote as urllib_unquote
+    from urllib import unquote as urllib_unquote
+    from urllib import quote as urllib_quote
 else:
     from urllib.parse import unquote as urllib_unquote
+    from urllib.parse import quote as urllib_quote
 #-----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
-from ..utils import get_class_list_display_string as cld
+from ..utils import findValue
 
 from .. import errors
 
@@ -183,18 +183,18 @@ class ScienceDirectEntry(object):
         
         # Things to get:
         #--------------
-        self.publication = self._findValue(article_abstract,'a','publication-title', 'class')
+        self.publication = findValue(article_abstract,'a','publication-title', 'class')
         
-        self.date = self._findValue(article_abstract,'span','cover-date', 'class')
+        self.date = findValue(article_abstract,'span','cover-date', 'class')
         self.year = self.date[-4:]
         
-        temp = self._findValue(article_abstract,'p','publication-volume-issue', 'class')
+        temp = findValue(article_abstract,'p','publication-volume-issue', 'class')
         self.volume = re.findall(', (.*?):', temp, re.DOTALL)
         self.volume = self.volume[0]
 
 
-        self.first_page = self._findValue(article_abstract,'span','first-page', 'class')
-        self.last_page = self._findValue(article_abstract,'span','last-page', 'class')
+        self.first_page = findValue(article_abstract,'span','first-page', 'class')
+        self.last_page = findValue(article_abstract,'span','last-page', 'class')
         self.pages = self.first_page + "-" + self.last_page
         # special_issue #p,publication-special-issue
 
@@ -203,11 +203,11 @@ class ScienceDirectEntry(object):
         #-------------
         # Could also graph href inside of the class and strip http://dx.doi.org/
         # This might be more reliable than assuming we have doi:asdfasdf
-        self.doi = self._findValue(article_abstract,'span','article-doi', 'class')
+        self.doi = findValue(article_abstract,'span','article-doi', 'class')
         if self.doi is not None:
             self.doi = self.doi[4:] #doi:asdfasdfasdf => remove 'doi":'
             
-        self.title = self._findValue(article_abstract,'h1','article-title', 'class')
+        self.title = findValue(article_abstract,'h1','article-title', 'class')
         # Authors:
         #-------
         # Look for <li> tags with class="author*"
@@ -234,41 +234,6 @@ class ScienceDirectEntry(object):
         '     volume: %s\n' % self.volume + \
         '      pages: %s\n' % self.pages + \
         '        doi: %s\n' % self.doi
-
-
-    def _findValue(self, tags, tag_name, label_name, label_type):
-        """
-        This is a small helper that is used to pull out values from a tag
-        given the value of the tags class or id attribute. See the example.
-
-        Parameters:
-        -----------
-        tag_name : str
-            Tag name or type, such as 'li','span', or 'div'
-        class_name : str
-            Used for selecting a specific value
-        label_type: str
-            Used to differentiate between 'class' or 'id' labels
-        tags : bs4.element.Tag
-
-        Example:
-        --------
-        # Our goal is to extract: Can. J. Physiol. Pharmacol.
-        # One of the tags is:
-        <span class="r_publication">Can. J. Physiol. Pharmacol.</span>
-
-        self._findValue('span','r_publication')
-
-        """
-        if label_type.lower() == 'class':
-            temp = tags.find(tag_name, {'class':label_name})
-        elif label_type.lower() == 'id':
-            temp = tags.find(tag_name, {'id':label_name})
-
-        if temp is None:
-            return None
-        else:
-            return temp.text
 
     @classmethod
     def from_pii(pii):
@@ -348,15 +313,14 @@ class ScienceDirectRef(object):
 
 
         self.ref_tags = ref_tags
-        findVal = self.findVal
 
 
         #Reference Bibliography Section: 
         #-------------------------------
         #Example str: <span class="r_volume">Volume 47</span>
         self.ref_id = ref_id + 1 #Input is 0 based
-        self.title = findVal(ref_tags, 'li','reference-title')
-        self.authors = findVal(ref_tags, 'li','reference-author')
+        self.title = findValue(ref_tags, 'li', 'reference-title', 'class')
+        self.authors = findValue(ref_tags, 'li', 'reference-author', 'class')
         #NOTE: We can also get individual authors if we would like.
         #        
         #   Search would be on: 
@@ -374,17 +338,17 @@ class ScienceDirectRef(object):
             if pub_tag is not None:
                 self.publication = pub_tag.text      
 
-        temp_volume      = findVal(ref_tags, 'span','r_volume')
+        temp_volume      = findValue(ref_tags, 'span','r_volume', 'class')
         if temp_volume is None:
             self.volume = None
         else:
             self.volume = temp_volume.replace('Volume ','')
             
-        self.issue  = findVal(ref_tags, 'span','r_issue')
-        self.series = findVal(ref_tags, 'span','r_series')
-        self.date   = findVal(ref_tags, 'span','r_pubdate')
+        self.issue  = findValue(ref_tags, 'span', 'r_issue', 'class')
+        self.series = findValue(ref_tags, 'span', 'r_series', 'class')
+        self.date   = findValue(ref_tags, 'span', 'r_pubdate', 'class')
         
-        temp_pages  = findVal(ref_tags, 'span','r_pages')
+        temp_pages  = findValue(ref_tags, 'span', 'r_pages', 'class')
         if temp_pages is None:
             self.pages = None
         else:
@@ -504,37 +468,6 @@ class ScienceDirectRef(object):
         '              pii: %s\n' % self.pii + \
         '         pdf_link: %s\n' % td(self.pdf_link) + \
         'scopus_cite_count: %s\n' % self.scopus_cite_count
-
-
-
-    def findVal(self,tags,tag_name,class_name):
-        """
-        This is a small helper that is used to pull out values from a tag
-        given the value of the tags class attribute. See the example.
-
-        Parameters:
-        -----------
-        tag_name : str
-            Tag name or type, such as 'li','span', or 'div'
-        class_name : str
-            Used for selecting a specific value
-        ref_tags : bs4.element.Tag
-
-        Example:
-        --------
-        #Our goal is to extract: Can. J. Physiol. Pharmacol.
-        #One of the tags is:
-        <span class="r_publication">Can. J. Physiol. Pharmacol.</span>
-
-        self._findValue('span','r_publication')
-
-        """
-
-        temp = tags.find(tag_name,{'class':class_name})
-        if temp is None:
-            return None
-        else:
-            return temp.text
         
         
 def ReferenceParser(object):
@@ -799,5 +732,5 @@ def _update_counts(s,eids,resolve_url):
     #TODO: go through refs and apply new values ...  
     
 
-def get_entry_info(url):
-    return ScienceDirectEntry(url, verbose=True)
+def get_entry_info(url, verbose=False, session=None):
+    return ScienceDirectEntry(url, verbose, session)

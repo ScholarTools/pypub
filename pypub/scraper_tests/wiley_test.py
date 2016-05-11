@@ -62,7 +62,7 @@ def test_references_type():
 def test_reflist_type():
     assert type(refs[0]) is wy.WileyRef
 
-
+'''
 # Testing correct entry information
 def test_entry_info():
     if 'crispr/cas9-mediated' not in entry.title.lower():
@@ -81,6 +81,9 @@ def test_entry_info():
         assert False
     else:
         assert True
+'''
+
+
 
 # Testing correct reference information
 

@@ -87,19 +87,42 @@ class WileyAuthor(object):
         Returns
         -------
 
+        Improvements
+        ------------
+        1) Allow retrieval of icon info:
+            - corresponding author info
+            - email author
+        2) Split name into parts
+
         """
 
-        # TODO: Incorporate affiliations with each author
-
+        # Get author name
         self.raw = li_tag.contents[0]
-        #self._data_refs = re.compile('[^\S]+').split(li_tag['data-refs'])
 
-        #self._class = li_tag['class']
+
+
+        # Extract all integers from the superscripted text
+        # This way each author object has a list of superscripts
+        # corresponding to the affiliation list indices.
+        super = li_tag.find('sup').text
+        self.superscripts = re.findall(r'\d+', super)
+
+        if super.find('*') != -1:
+            self.contact = 1
+        else:
+            self.contact = None
+
+        self.email = None
+
+    #
+    def populate_affiliations(self,aff_labels):
+        self.affiliations = [aff_labels[int(x)-1] for x in self.superscripts]
 
     def __repr__(self):
         return u'' + \
-                'name: %s' % self.raw
-        #'affiliations: %s\n' % self.affiliations[0].raw
+                'name: %s\n' % self.raw + \
+        'affiliations: %s\n' % self.affiliations + \
+             'email: %s\n' % self.email
 
 
 class WileyEntry(object):
@@ -204,9 +227,6 @@ class WileyEntry(object):
         #self.keywords = [w.text for w in wordlist]
         self.keywords = None
 
-        #import pdb
-        #pdb.set_trace()
-
         # DOI Retrieval:
         #---------------
         # This might be more reliable than assuming we have the DOI in the title (same as pii)
@@ -214,9 +234,30 @@ class WileyEntry(object):
         self.doi = self.doi[5:] # to get rid of 'DOI: ' at the beginning
 
 
-        # Authors
+        # Authors:
+        #---------
+        # Find list items within the ordered list with id 'authors'
         authorList = mainContent.find('ol', {'id':'authors'}).find_all('li')
         self.authors = [WileyAuthor(x) for x in authorList]
+
+        # Find all list items with the 'affiliation' class
+        # The content is kept in a <p> tag within each list item
+        aff_tags = mainContent.find_all('li', {'class' : 'affiliation'})
+        self.affiliations = [a.find('p').text for a in aff_tags]
+
+        # Clean up strings - Not sure if necessary
+        for a in range(len(self.affiliations)):
+            self.affiliations[a] = self.affiliations[a].replace(', and ', '')
+            self.affiliations[a] = self.affiliations[a].replace('            ', '')
+
+        corr = mainContent.find('p', {'id' : 'correspondence'})
+        email = findValue(corr, 'a', 'Link to email address', 'title')
+
+        # Assign affiliations to authors
+        for author in self.authors:
+            author.populate_affiliations(self.affiliations)
+            if author.contact == 1:
+                author.email = email
 
 
 

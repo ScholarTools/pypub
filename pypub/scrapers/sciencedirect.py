@@ -219,9 +219,6 @@ class ScienceDirectEntry(object):
         
         for author in self.authors:
             author.populate_affiliations(self.affiliations)
-
-        #import pdb
-        #pdb.set_trace()
         
         keyword_tags = article_abstract.find_all('li',{'class':'article-keyword'})
         self.keywords = [x.text for x in keyword_tags]
@@ -370,10 +367,10 @@ class ScienceDirectRef(object):
         #the publication. Some custom code is needed to first go into a r_series
         #span and then to the publication
         self.publication = None
-        r_source_tag = findVal(ref_tags, 'span','r_series')
+        r_source_tag = ref_tags.find('span', {'class' : 'r_series'})
 
         if r_source_tag is not None:
-            pub_tag = r_source_tag.find('span','r_publication')
+            pub_tag = r_source_tag.find('span', {'class' : 'r_publication'})
             if pub_tag is not None:
                 self.publication = pub_tag.text      
 

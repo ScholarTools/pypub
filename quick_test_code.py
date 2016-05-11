@@ -61,21 +61,24 @@ evil.parse_raw_references(raw_refs)
 '''
 from pypub.scrapers import sciencedirect as sd
 
-refs = sd.get_references('0006899387903726', verbose=True)
-print(refs[0])
-'''
-'''
 entry = sd.get_entry_info('http://www.sciencedirect.com/science/article/pii/0006899387903726')
 print(entry)
+
+refs = sd.get_references('0006899387903726', verbose=True)
+print(refs[0])
 '''
 
 # Wiley
 #=====================================================
 
 from pypub.scrapers import wiley as wy
-
+'''
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
 wiley_pii = '10.1002/biot.201400046'
+'''
+
+wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/abstract'
+wiley_pii = '10.1111/j.1464-4096.2004.04875.x'
 
 entry = wy.get_entry_info(wiley_link, verbose=True)
 print(entry)
@@ -83,8 +86,8 @@ print(entry)
 refs = wy.get_references(wiley_pii, verbose=True)
 print('%i references returned' % len(refs))
 print(refs[0])
-'''
 
+'''
 # New example with more recent article
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/bit.25159/abstract'
 wiley_pii = '10.1002/bit.25159'

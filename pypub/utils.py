@@ -48,10 +48,7 @@ def findValue(tags, tag_name, label_name, label_type):
         self._findValue('span','r_publication')
 
         """
-        if label_type.lower() == 'class':
-            temp = tags.find(tag_name, {'class':label_name})
-        elif label_type.lower() == 'id':
-            temp = tags.find(tag_name, {'id':label_name})
+        temp = tags.find(tag_name, {'%s' % label_type: label_name})
 
         if temp is None:
             return None

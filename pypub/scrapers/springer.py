@@ -1,10 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-http://onlinelibrary.wiley.com/doi/10.1111/j.1440-1681.1976.tb00619.x/abstract
+http://link.springer.com/article/10.1186/s12984-016-0150-9
 
-Module: pypub.scrapers.wiley
+Module: pypub.scrapers.springer
 
 Status: In progress
+
+Note about Springer version:
+----------------------------
+As of the making of this scraper (May 12, 2016), many article pages on SpringerLink contain a banner
+stating "We're trialling a new version of this page". This scraper corresponds to this new page layout,
+and does not work for the old SpringerLink pages (which can right now still be reached by appending
+'?view=classic' to the URL for those articles that automatically go to the new format).
+
+
 
 #TODO: Add tests, this stuff will break!
 #TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
@@ -16,18 +25,17 @@ Status: In progress
 Tasks/Examples:
 ---------------
 1) ****** Get references given a doi value *******
-from pypub.scrapers import wiley as wy
+from pypub.scrapers import springer as sp
 
-refs = wy.get_references('0006899387903726',verbose=True)
+refs = sp.get_references('0006899387903726',verbose=True)
 
-refs = wy.get_references('S1042368013000776',verbose=True)
+refs = sp.get_references('S1042368013000776',verbose=True)
 
 df = refs[0].to_data_frame(refs)
 
 
 Currently I am building something that allows extraction of references from
-a Wiley URL.
-
+a Springer Link URL.
 
 """
 
@@ -57,9 +65,9 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-_WY_URL = 'http://www.onlinelibrary.wiley.com'
+_SP_URL = 'http://www.link.springer.com'
 
-class WileyAuthorAffiliations(object):
+class SpringerAuthorAffiliations(object):
 
     def __init__(self, li_tag):
         self.id = li_tag['id']
@@ -71,7 +79,7 @@ class WileyAuthorAffiliations(object):
         'raw: %s\n' % td(self.raw)
 
 
-class WileyAuthor(object):
+class SpringerAuthor(object):
 
     def __init__(self, li_tag):
 
@@ -102,8 +110,6 @@ class WileyAuthor(object):
         # Get author name
         self.raw = li_tag.contents[0]
 
-
-
         # Extract all integers from the superscripted text
         # This way each author object has a list of superscripts
         # corresponding to the affiliation list indices.
@@ -128,7 +134,7 @@ class WileyAuthor(object):
              'email: %s\n' % self.email
 
 
-class WileyEntry(object):
+class SpringerEntry(object):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper.
@@ -140,13 +146,13 @@ class WileyEntry(object):
 
     See Also
     ----------
-    WileyRef
+    SpringerRef
 
     Examples
     ----------
-    from pypub.scrapers import wiley as wy
-    url = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1440-1681.1976.tb00619.x/references'
-    wye = wy.WileyEntry(url,verbose=True)
+    from pypub.scrapers import springer as sp
+    url = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
+    wye = sp.SpringerEntry(url,verbose=True)
 
     Improvements
     ----------
@@ -155,19 +161,11 @@ class WileyEntry(object):
     """
     def __init__(self, url, verbose=False, session=None):
 
-        # Check to see which version of the URL is being used, and go to abstract page.
-        # Wiley separates info into multiple tabs, each with a unique URL
-        #  ending in /abstract, /references, or /citedby.
-        # Most relevant single entry information is in the /abstract URL.
         self.url = url
-        ending = re.search('[^/]+$',self.url).group(0)
-        if ending != 'abstract':
-            self.url = self.url[:-len(ending)] + 'abstract'
 
         # Extract the DOI from the URL
-        # Get everything between 'onlinelibrary.wiley.com/doi/' and '/abstract'
-        doi = re.findall('doi/(.*?)/abstract', self.url, re.DOTALL)
-        self.doi = doi[0]
+        articlestart = url.find('article/') # Find the occurrence of 'article/' in the url
+        self.doi = url[(articlestart+8):]
 
         # Web page retrieval
         #-------------------
@@ -192,7 +190,7 @@ class WileyEntry(object):
         #
         backlink = soup.find('a', {'id' : 'wol1backlink'})
         if backlink is not None:
-            url = _WY_URL + '/wol1/doi/' + self.doi + '/abstract'
+            url = _SP_URL + '/wol1/doi/' + self.doi + '/abstract'
             r = s.get(url)
             soup = BeautifulSoup(r.text)
 
@@ -241,7 +239,7 @@ class WileyEntry(object):
         #---------
         # Find list items within the ordered list with id 'authors'
         authorList = mainContent.find('ol', {'id':'authors'}).find_all('li')
-        self.authors = [WileyAuthor(x) for x in authorList]
+        self.authors = [SpringerAuthor(x) for x in authorList]
 
         # Find all list items with the 'affiliation' class
         # The content is kept in a <p> tag within each list item
@@ -278,12 +276,13 @@ class WileyEntry(object):
 
     @classmethod
     def from_doi(doi):
-        return WileyEntry(_WY_URL + '/doi/' + str(doi) + '/abstract')
+        entry = SpringerEntry(_SP_URL + '/doi/' + str(doi) + '/abstract')
+        return entry
 
 
 # TODO: Inherit from some abstract ref class
 # I think the abstract class should only require conversion to a common standard
-class WileyRef(object):
+class SpringerRef(object):
     """
     This is the result class of calling get_references. It contains the
     bibliographic information about the reference, as well as additional meta
@@ -309,7 +308,6 @@ class WileyRef(object):
         currently based on the presence of a link to fulltext via Crossref.
     pdf_link : string (default None)
         If not None, this link points to the pdf of the article.
-
 
 
     See Also:
@@ -396,21 +394,21 @@ class WileyRef(object):
                 if 'crossref' in label:
                     self.doi = re.search('[^id=]+$',href).group(0)
                     self.doi = urllib_unquote(self.doi)[1:] # The [1:] is to get rid of the first '='
-                    self.crossref = _WY_URL + href
+                    self.crossref = _SP_URL + href
                 elif 'pubmed' in label:
                     self.pubmed_id = re.search('[^id=]+$',href).group(0)
                     self.pubmed_id = urllib_unquote(self.pubmed_id)[1:]
-                    self.pubmed = _WY_URL + href
+                    self.pubmed = _SP_URL + href
                 elif 'web ' in label:
                     self.citetimes = re.search('[^: ]+$',label).group(0)
                 elif label in ('cas', 'cas,'):
-                    self.cas = _WY_URL + href
+                    self.cas = _SP_URL + href
                 elif 'abstract' in label:
-                    self.abstract = _WY_URL + href
+                    self.abstract = _SP_URL + href
                 elif 'pdf' in label:
-                    self.pdf_link = _WY_URL + href
+                    self.pdf_link = _SP_URL + href
                 elif 'references' in label:
-                    self.ref_references = _WY_URL + href
+                    self.ref_references = _SP_URL + href
 
 
     def __repr__(self):
@@ -437,14 +435,12 @@ class WileyRef(object):
 
 def get_references(doi, verbose=False):
     """
-    This function gets references for a Wiley URL that is of the
+    This function gets references for a Springer URL that is of the
     form:
 
-        http://www.onlinelibrary.wiley.com/doi/####################/references
+        http://www.link.springer.com/article/####################
 
-        (ending could also be /abstract or /citedby)
-
-        e.g. http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/references
+        e.g. http://link.springer.com/article/10.1186/s12984-016-0150-9
 
     """
 
@@ -468,7 +464,7 @@ def get_references(doi, verbose=False):
 
     # This is the URL to the page that contains the document info, including
     # reference material
-    BASE_URL = _WY_URL + '/doi/'
+    BASE_URL = _SP_URL + '/doi/'
 
     # Ending with the references listed
     SUFFIX = '/references'
@@ -491,7 +487,7 @@ def get_references(doi, verbose=False):
     #
     backlink = soup.find('a', {'id' : 'wol1backlink'})
     if backlink is not None:
-        url = _WY_URL + '/wol1/doi/' + doi + '/references'
+        url = _SP_URL + '/wol1/doi/' + doi + '/references'
         r = s.get(url)
         soup = BeautifulSoup(r.text)
 
@@ -531,7 +527,7 @@ def get_references(doi, verbose=False):
     # as well as external links.
     if verbose:
         print('Creating reference objects')
-    ref_objects = [WileyRef(ref_tag, ref_id) for \
+    ref_objects = [SpringerRef(ref_tag, ref_id) for \
                     ref_tag, ref_id in \
                     zip(ref_tags, range(n_refs))]
 
@@ -542,4 +538,4 @@ def get_references(doi, verbose=False):
 
 
 def get_entry_info(url, verbose=False, session=None):
-    return WileyEntry(url, verbose, session)
+    return SpringerEntry(url, verbose, session)

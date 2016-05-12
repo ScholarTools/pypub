@@ -4,11 +4,13 @@ Module: pypub.scrapers.sciencedirect
 
 Status: In progress
 
-#TODO: Add a verbose printout so I can see what's happening
 #TODO: Profile usage, why is this sooooooo slow
 #TODO: Add tests, this stuff will break!
 #TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
 
+#TODO: STANDARDIZE THE FUNCTION INPUTS!!!
+     - Either get references and get entry info both using a URL as the input, or
+       both using a DOI/PII as an input. Different inputs for each is confusing.
 
 
 Tasks/Examples:

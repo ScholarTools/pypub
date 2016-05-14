@@ -1,18 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-http://link.springer.com/article/10.1186/s12984-016-0150-9
 
-Module: pypub.scrapers.springer
+Module: pypub.scrapers.scraper_skeleton
 
 Status: In progress
-
-Note about Springer version:
-----------------------------
-As of the making of this scraper (May 12, 2016), many article pages on SpringerLink contain a banner
-stating "We're trialling a new version of this page". This scraper corresponds to this new page layout,
-and does not work for the old SpringerLink pages (which can right now still be reached by appending
-'?view=classic' to the URL for those articles that automatically go to the new format).
-
 
 
 #TODO: Add tests, this stuff will break!
@@ -25,17 +16,17 @@ and does not work for the old SpringerLink pages (which can right now still be r
 Tasks/Examples:
 ---------------
 1) ****** Get references given a doi value *******
-from pypub.scrapers import springer as sp
+from pypub.scrapers import ________ as __
 
-refs = sp.get_references('0006899387903726',verbose=True)
+refs = __.get_references('0006899387903726',verbose=True)
 
-refs = sp.get_references('S1042368013000776',verbose=True)
+refs = __.get_references('S1042368013000776',verbose=True)
 
 df = refs[0].to_data_frame(refs)
 
 
 Currently I am building something that allows extraction of references from
-a Springer Link URL.
+a URL.
 
 """
 
@@ -55,19 +46,19 @@ else:
 #-----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from ..utils import get_truncated_display_string as td
-from ..utils import findValue
+from ScholarTools.pypub.pypub.utils import get_truncated_display_string as td
+from ScholarTools.pypub.pypub.utils import findValue
 
-from .. import errors
+from ScholarTools.pypub.pypub import errors
 
 import re
 #-------------------
 import requests
 from bs4 import BeautifulSoup
 
-_SP_URL = 'http://link.springer.com'
+_SP_URL = ''
 
-class SpringerAuthor(object):
+class Author(object):
 
     def __init__(self, li_tag):
 
@@ -111,7 +102,7 @@ class SpringerAuthor(object):
              'email: %s\n' % self.email
 
 
-class SpringerEntry(object):
+class Entry(object):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper.
@@ -128,8 +119,8 @@ class SpringerEntry(object):
     Examples
     ----------
     from pypub.scrapers import springer as sp
-    url = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
-    wye = sp.SpringerEntry(url,verbose=True)
+    url = ''
+    wye = __.Entry(url,verbose=True)
 
     Improvements
     ----------
@@ -152,7 +143,6 @@ class SpringerEntry(object):
 
         # Two dates are given: original publication date and
         # online publication date. This returns the original journal pub date.
-        # SpringerLink gives the date in a <year> tag within the ArticleCitation_Year <span> tag
         yearwrapper = mainContent.find('span', {'class' : 'ArticleCitation_Year'})
         self.date = yearwrapper.find('time').text
         self.year = self.date[-4:]

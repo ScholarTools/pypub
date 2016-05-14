@@ -47,29 +47,17 @@ else:
 #-----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from ScholarTools.pypub.pypub.utils import get_truncated_display_string as td
-from ScholarTools.pypub.pypub.utils import findValue
+from ..utils import get_truncated_display_string as td
+from ..utils import findValue
 
-from ScholarTools.pypub.pypub import errors
+from .. import errors
 
 import re
 #-------------------
 import requests
 from bs4 import BeautifulSoup
 
-_WY_URL = 'http://www.onlinelibrary.wiley.com'
-
-class WileyAuthorAffiliations(object):
-
-    def __init__(self, li_tag):
-        self.id = li_tag['id']
-        self.raw = li_tag.contents[1]
-
-    def __repr__(self):
-        return u'' + \
-        ' id: %s\n' % self.id + \
-        'raw: %s\n' % td(self.raw)
-
+_WY_URL = 'http://onlinelibrary.wiley.com'
 
 class WileyAuthor(object):
 
@@ -153,55 +141,12 @@ class WileyEntry(object):
     - Add citing articles
 
     """
-    def __init__(self, url, verbose=False, session=None):
+    def __init__(self, soup, verbose=False):
 
-        # Check to see which version of the URL is being used, and go to abstract page.
-        # Wiley separates info into multiple tabs, each with a unique URL
-        #  ending in /abstract, /references, or /citedby.
-        # Most relevant single entry information is in the /abstract URL.
-        self.url = url
-        ending = re.search('[^/]+$',self.url).group(0)
-        if ending != 'abstract':
-            self.url = self.url[:-len(ending)] + 'abstract'
-
-        # Extract the DOI from the URL
-        # Get everything between 'onlinelibrary.wiley.com/doi/' and '/abstract'
-        doi = re.findall('doi/(.*?)/abstract', self.url, re.DOTALL)
-        self.doi = doi[0]
-
-        # Web page retrieval
-        #-------------------
-        if session is None:
-            s = requests.Session()
-        else:
-            s = session
-
-        if verbose:
-            print('Requesting main page for doi: %s' % self.doi)
-
-        # Get webpage
-        r = s.get(url)
-
-        soup = BeautifulSoup(r.text)
-        self.soup = soup
-
-        #
-        # Some newer journals/articles are using an updated, minimalistic page layout.
-        # This isn't compatible with the HTML tags of the old version, so we need to
-        # check for that and use the old site view if necessary.
-        #
-        backlink = soup.find('a', {'id' : 'wol1backlink'})
-        if backlink is not None:
-            url = _WY_URL + '/wol1/doi/' + self.doi + '/abstract'
-            r = s.get(url)
-            soup = BeautifulSoup(r.text)
-
-
-
+        # Get entry content information
         mainContent = soup.find('div', {'id' : 'mainContent'})
         if mainContent is None:
             raise errors.ParseException('Unable to find main content of page')
-
 
 
         # Metadata:
@@ -434,8 +379,7 @@ class WileyRef(object):
 
 
 
-
-def get_references(doi, verbose=False):
+def get_references(input, verbose=False):
     """
     This function gets references for a Wiley URL that is of the
     form:
@@ -448,9 +392,6 @@ def get_references(doi, verbose=False):
 
     """
 
-    # TODO: Move this to WileyEntry - I'm thinking of making this its own
-    # class as well
-    #
     # TODO: Make this a class reference parser
 
     # If you view the references, they should be wrapped by a <ul> tag
@@ -466,35 +407,9 @@ def get_references(doi, verbose=False):
     # Hopefully this doesn't grab other random list items on the page
     REFERENCE_TAG = ('li', {'id' : re.compile('b*')})
 
-    # This is the URL to the page that contains the document info, including
-    # reference material
-    BASE_URL = _WY_URL + '/doi/'
-
-    # Ending with the references listed
-    SUFFIX = '/references'
-
-
     # Step 1 - Make the request
     #--------------------------------------------------------------------------
-    s = requests.Session()
-
-    if verbose:
-        print('Requesting main page for doi: %s' % doi)
-    r = s.get(BASE_URL +  doi + SUFFIX)
-
-    soup = BeautifulSoup(r.text)
-
-    #
-    # Some newer journals/articles are using an updated, minimalistic page layout.
-    # This isn't compatible with the HTML tags of the old version, so we need to
-    # check for that and use the old site view if necessary.
-    #
-    backlink = soup.find('a', {'id' : 'wol1backlink'})
-    if backlink is not None:
-        url = _WY_URL + '/wol1/doi/' + doi + '/references'
-        r = s.get(url)
-        soup = BeautifulSoup(r.text)
-
+    soup = make_soup(input, 'references', verbose)
 
     # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
@@ -541,5 +456,85 @@ def get_references(doi, verbose=False):
     return ref_objects
 
 
-def get_entry_info(url, verbose=False, session=None):
-    return WileyEntry(url, verbose, session)
+def get_entry_info(input, verbose=False):
+    soup = make_soup(input, 'entry', verbose)
+    return WileyEntry(soup, verbose)
+
+
+def make_soup(input, type, verbose=False):
+    # Check if the input is a DOI or URL
+    if is_url(input):
+        doi = extract_doi(input)
+    elif is_doi(input):
+        doi = input
+    else:
+        raise ValueError('Input not recognized as a valid DOI or Wiley URL')
+
+    # Web page retrieval
+    #-------------------
+    soup = connect(doi, type, verbose)
+    return soup
+
+
+def is_url(input):
+    if input.find('wiley') != -1:
+        return True
+    else:
+        return False
+
+def is_doi(input):
+    if input.find('10.') == 0:
+        return True
+    else:
+        return False
+
+
+def extract_doi(url):
+    # First check to see which version of the URL is being used, and get ending.
+    # Wiley separates info into multiple tabs, each with a unique URL
+    # ending in /abstract, /references, or /citedby.
+    # This is used to get the DOI
+    ending = re.search('[^/]+$',url).group(0)
+
+    # Extract the DOI from the URL
+    # Get everything between 'onlinelibrary.wiley.com/doi/' and the URL ending
+    doi = re.findall('doi/(.*?)/%s' %ending, url, re.DOTALL)
+    doi = doi[0]
+
+    return doi
+
+
+def connect(doi, type, verbose=None):
+    # Add the correct URL suffix:
+    if type == 'references':
+        SUFFIX = '/references'
+    elif type == 'entry':
+        SUFFIX = '/abstract'
+    else:
+        SUFFIX = None
+
+    # Construct valid SpringerLink URL from given DOI
+    url = _WY_URL + '/doi/' + doi + SUFFIX
+
+    # Web page retrieval
+    #-------------------
+    s = requests.Session()
+
+    if verbose:
+        print('Requesting main page for doi: %s' % doi)
+
+    r = s.get(url)
+    soup = BeautifulSoup(r.text)
+
+    #
+    # Some newer journals/articles are using an updated, minimalistic page layout.
+    # This isn't compatible with the HTML tags of the old version, so we need to
+    # check for that and use the old site view if necessary.
+    #
+    backlink = soup.find('a', {'id' : 'wol1backlink'})
+    if backlink is not None:
+        url = _WY_URL + '/wol1/doi/' + doi + '/references'
+        r = requests.session().get(url)
+        soup = BeautifulSoup(r.text)
+
+    return soup

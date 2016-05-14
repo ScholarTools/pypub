@@ -73,23 +73,24 @@ print(refs[0])
 
 # Wiley
 #=====================================================
-
-from pypub.scrapers import wiley as wy
 '''
+from pypub.scrapers import wiley as wy
+
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
 wiley_doi = '10.1002/biot.201400046'
 '''
-
+'''
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/abstract'
 wiley_doi = '10.1111/j.1464-4096.2004.04875.x'
-
+'''
+'''
 entry = wy.get_entry_info(wiley_link, verbose=True)
 print(entry)
 
-refs = wy.get_references(wiley_doi, verbose=True)
+refs = wy.get_references(wiley_link, verbose=True)
 print('%i references returned' % len(refs))
 print(refs[0])
-
+'''
 '''
 # New example with more recent article
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/bit.25159/abstract'
@@ -98,7 +99,7 @@ wiley_doi = '10.1002/bit.25159'
 entry = wy.get_entry_info(wiley_link, verbose=True)
 print(entry)
 
-refs = wy.get_references(wiley_doi, verbose=True)
+refs = wy.get_references(wiley_link, verbose=True)
 print('%i references returned' % len(refs))
 print(refs[0])
 '''
@@ -106,7 +107,7 @@ print(refs[0])
 
 # Springer - doesn't work yet
 #=====================================================
-'''
+
 from pypub.scrapers import springer as sp
 
 sp_link = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
@@ -115,9 +116,10 @@ sp_doi = '10.1186/s12984-016-0150-9'
 entry = sp.get_entry_info(sp_link, verbose=True)
 print(entry)
 
-refs = sp.get_references(sp_doi, verbose=True)
+refs = sp.get_references(sp_link, verbose=True)
+print('%i references returned' % len(refs))
 print(refs[0])
-'''
+
 
 
 

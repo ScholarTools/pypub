@@ -20,10 +20,10 @@ entry = sd.get_entry_info(link)
 refs = sd.get_references(pii)
 
 # Load cached version of content and references
-fc = open('sd_content.txt')
+fc = open('saved_sites/sd_content.txt')
 saved_content = fc.read()
 fc.close()
-fr = open('sd_references.txt')
+fr = open('saved_sites/sd_references.txt')
 saved_refs = fr.read()
 fr.close()
 

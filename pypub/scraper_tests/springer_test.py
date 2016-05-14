@@ -1,29 +1,30 @@
 import pytest
 
-from ..scrapers import wiley as wy
+from ..scrapers import springer as sp
 import requests
 from bs4 import BeautifulSoup
 
 # Sample journal article
-link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
-pii = '10.1002/biot.201400046'
+link = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
+pii = '10.1186/s12984-016-0150-9'
 
 # Retrieve soup of content and references from live site
 s = requests.session()
 r = s.get(link)
 soup = BeautifulSoup(r.text)
-content = soup.find('div', {'id' : 'mainContent'})
-references = soup.find('div', {'class' : 'bibliography'})
+
+content = soup.find('div', {'class' : 'ArticleHeader'})
+references = soup.find('ol', {'class' : 'BibliographyWrapper'})
 
 # Run scraper on live site
-entry = wy.get_entry_info(link)
-refs = wy.get_references(pii)
+entry = sp.get_entry_info(link)
+refs = sp.get_references(pii)
 
 # Load cached version of content and references
-fc = open('saved_sites/wy_content.txt')
+fc = open('saved_sites/sp_content.txt')
 saved_content = fc.read()
 fc.close()
-fr = open('saved_sites/wy_references.txt')
+fr = open('saved_sites/sp_references.txt')
 saved_refs = fr.read()
 fr.close()
 
@@ -31,13 +32,13 @@ fr.close()
 
 # Testing return types
 def test_entry_type():
-    assert type(entry) is wy.WileyEntry
+    assert type(entry) is sp.SpringerEntry
 
 def test_references_type():
     assert type(refs) is list
 
 def test_reflist_type():
-    assert type(refs[0]) is wy.WileyRef
+    assert type(refs[0]) is sp.SpringerRef
 
 
 # Testing scraped soup against saved site version

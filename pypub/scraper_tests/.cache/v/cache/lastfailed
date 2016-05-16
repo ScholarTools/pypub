@@ -1,1 +1,5 @@
-{}
+{
+  "sd_test.py::test_sd_saved_entry": true, 
+  "springer_test.py": true, 
+  "wiley_test.py": true
+}

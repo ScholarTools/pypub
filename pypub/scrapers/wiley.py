@@ -88,7 +88,7 @@ class WileyAuthor(object):
         """
 
         # Get author name
-        self.raw = li_tag.contents[0]
+        self.name = li_tag.contents[0]
 
 
 
@@ -111,7 +111,7 @@ class WileyAuthor(object):
 
     def __repr__(self):
         return u'' + \
-                'name: %s\n' % self.raw + \
+                'name: %s\n' % self.name + \
         'affiliations: %s\n' % self.affiliations + \
              'email: %s\n' % self.email
 
@@ -277,8 +277,6 @@ class WileyRef(object):
 
         """
 
-        self.ref_tags = ref_tags
-
         # Reference Bibliography Section:
         #--------------------------------
         self.ref_id = ref_id + 1 # Input is 0 indexed
@@ -300,6 +298,8 @@ class WileyRef(object):
         lastp = findValue(ref_tags, 'span', 'pageLast', 'class')
         if (firstp is not None) and (lastp is not None):
             self.pages = firstp + '-' + lastp
+        else:
+            self.pages = None
 
 
         # Reference Meta Section:
@@ -329,33 +329,31 @@ class WileyRef(object):
             # Check against all possible link options and save links.
             # href links are appended onto base URL ('http://onlinelibrary.wiley.com')
             #
-            # NOTE: links are returned URL encoded (using urllib.quote(), but DOI
-            # and PubMed IDs are not encoded. This means that if extracting the DOI
-            # from one of the returned URLs, it needs to be first unquoted.
-            #
             for link in links:
                 label = link.text.lower()
                 href = link.find('a', href=True)['href']
                 href = urllib_quote(href)
 
                 if 'crossref' in label:
-                    self.doi = re.search('[^id=]+$',href).group(0)
-                    self.doi = urllib_unquote(self.doi)[1:] # The [1:] is to get rid of the first '='
-                    self.crossref = _WY_URL + href
+                    self.doi = href[href.find('10.'):] # Grab everything starting with '10.' in link
+                    if self.doi == -1:
+                        self.doi = None
+                    self.doi = urllib_unquote(self.doi)
+                    self.crossref = _WY_URL + urllib_unquote(href)
                 elif 'pubmed' in label:
-                    self.pubmed_id = re.search('[^id=]+$',href).group(0)
-                    self.pubmed_id = urllib_unquote(self.pubmed_id)[1:]
-                    self.pubmed = _WY_URL + href
+                    self.pubmed_id = re.search('[^id=]+$',href).group(0)[1:] # the [1:] is to get rid of leading '='
+                    self.pubmed_id = urllib_unquote(self.pubmed_id)
+                    self.pubmed = _WY_URL + urllib_unquote(href)
                 elif 'web ' in label:
                     self.citetimes = re.search('[^: ]+$',label).group(0)
                 elif label in ('cas', 'cas,'):
-                    self.cas = _WY_URL + href
+                    self.cas = _WY_URL + urllib_unquote(href)
                 elif 'abstract' in label:
-                    self.abstract = _WY_URL + href
+                    self.abstract = _WY_URL + urllib_unquote(href)
                 elif 'pdf' in label:
-                    self.pdf_link = _WY_URL + href
+                    self.pdf_link = _WY_URL + urllib_unquote(href)
                 elif 'references' in label:
-                    self.ref_references = _WY_URL + href
+                    self.ref_references = _WY_URL + urllib_unquote(href)
 
 
     def __repr__(self):
@@ -513,7 +511,7 @@ def connect(doi, type, verbose=None):
     else:
         SUFFIX = None
 
-    # Construct valid SpringerLink URL from given DOI
+    # Construct valid Wiley URL from given DOI
     url = _WY_URL + '/doi/' + doi + SUFFIX
 
     # Web page retrieval

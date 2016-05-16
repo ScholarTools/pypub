@@ -4,8 +4,6 @@ Module: pypub.scrapers.sciencedirect
 
 Status: In progress
 
-#TODO: Profile usage, why is this sooooooo slow
-#TODO: Add tests, this stuff will break!
 #TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
 
 #TODO: STANDARDIZE THE FUNCTION INPUTS!!!
@@ -60,16 +58,6 @@ from bs4 import BeautifulSoup
 
 _SD_URL = 'http://www.sciencedirect.com'
 
-class ScienceDirectAuthorAffiliations(object):
-
-    def __init__(self,li_tag):
-        self.id = li_tag['id']
-        self.raw = li_tag.contents[1]
-
-    def __repr__(self):
-        return u'' + \
-        ' id: %s, ' % self.id + \
-        'raw: %s\n' % self.raw
 
 class ScienceDirectAuthor(object):
     
@@ -112,14 +100,36 @@ class ScienceDirectAuthor(object):
         # This is a list:
         # http://www.crummy.com/software/BeautifulSoup/bs4/doc/#multi-valued-attributes
         self._class = li_tag['class']
+
+        # Extract all integers from the superscripted text
+        # This way each author object has a list of superscripts
+        # corresponding to the affiliation list indices.
+        super = li_tag.find_all('sup')
+
+        supers = []
+        for x in range(len(super)):
+            if re.sub(r'\W+', '', super[x].text) == '':
+                pass
+            else:
+                supers.append(re.sub(r'\W+', '', super[x].text))
+
+        self.supers = supers
+
+        contact = li_tag.find('a', {'class' : 'icon-email-author'})
+        if contact == None:
+            self.email = None
+        else:
+            self.email = contact['href']
+            self.email = self.email[8:] # to get rid of leading 'mailto:'
     
-    def populate_affiliations(self,aff_objs):
-        self.affiliations = [x for x in aff_objs if x.id in self._data_refs]
+    def populate_affiliations(self,aff_dict):
+        self.affiliations = [aff_dict[x] for x in self.supers]
 
     def __repr__(self):
         return u'' + \
                 'name: %s, ' % self.raw + \
-        'affiliations: %s\n' % self.affiliations[0].raw
+        'affiliations: %s\n' % self.affiliations + \
+               'email: %s\n' % self.email
 
 class ScienceDirectEntry(object):
     
@@ -150,32 +160,7 @@ class ScienceDirectEntry(object):
     - Add Recommended Articles
     
     """
-    def __init__(self,url,verbose=False,session=None):
-        
-        self.url = url
-        
-        #We're grabbing everything after the last '/'
-        self.pii = re.search('[^pii/]+$',self.url).group(0)
-
-
-        #Web page retrieval
-        #------------------        
-        if session is None:
-            s = requests.Session()
-        else:
-            s = session
-       
-        if verbose:
-            print('Requesting main page for pii: %s' % self.pii)
-
-        # Using the mobile version of ScienceDirect
-        # This is to avoid dynamically loading page features on the desktop site
-        # and because the mobile site has more cleanly organized information
-        r = s.get(url,cookies={'Site':'Mobile'})
-        
-        soup = BeautifulSoup(r.text)
-        
-        self.soup = soup
+    def __init__(self,soup,verbose=False):
 
         # This div and id are mobile site specific
         article_abstract = soup.find('div',id='article-abstract')
@@ -207,7 +192,7 @@ class ScienceDirectEntry(object):
         # This might be more reliable than assuming we have doi:asdfasdf
         self.doi = findValue(article_abstract,'span','article-doi', 'class')
         if self.doi is not None:
-            self.doi = self.doi[4:] #doi:asdfasdfasdf => remove 'doi":'
+            self.doi = self.doi[4:] #doi:10.######### => remove 'doi":'
             
         self.title = findValue(article_abstract,'h1','article-title', 'class')
         # Authors:
@@ -217,10 +202,21 @@ class ScienceDirectEntry(object):
         self.authors = [ScienceDirectAuthor(x) for x in article_abstract.find_all('li',class_=re.compile('^author'))]
 
         aff_tags = article_abstract.find_all('li',class_='affiliation label')
-        self.affiliations = [ScienceDirectAuthorAffiliations(x) for x in aff_tags]
-        
+
+        # ScienceDirect uses letter superscripts for author affiliations rather than numbers, making them
+        # annoying to index. This takes the footnote-style list of affiliated institutions and makes a
+        # dict with the superscript letters as keys.
+        superscripts = []
+        aff_names = []
+        for x in aff_tags:
+            superscripts.append(x.find('span').text)
+            aff_names.append(x.contents[1])
+
+        aff_dict = dict(zip(superscripts, aff_names))
+
+        # For each author, the aff_dict is used to assign the appropriate affiliation(s) to the author
         for author in self.authors:
-            author.populate_affiliations(self.affiliations)
+            author.populate_affiliations(aff_dict)
         
         keyword_tags = article_abstract.find_all('li',{'class':'article-keyword'})
         self.keywords = [x.text for x in keyword_tags]
@@ -312,10 +308,6 @@ class ScienceDirectRef(object):
             
      
         """
-
-
-        self.ref_tags = ref_tags
-
 
         #Reference Bibliography Section: 
         #-------------------------------
@@ -479,7 +471,7 @@ def ReferenceParser(object):
     #This would also swallow _update_counts
     pass
 
-def get_references(pii,verbose=False):
+def get_references(input,verbose=False):
     
     """
     This function gets references for a Sciencedirect URL that is of the
@@ -505,12 +497,6 @@ def get_references(pii,verbose=False):
     
     """
 
-    # TODO: Finish this
-    # - get references, extra step after page
-    # - get reference counts, extra step after references
-
-
-    
 
     # TODO: Move this to ScienceDirectEntry - I'm thinking of making this its own
     # class as well
@@ -543,21 +529,26 @@ def get_references(pii,verbose=False):
 
     # Step 1 - Make the request
     #--------------------------------------------------------------------------
-      
-    s = requests.Session()    
-       
+    if is_url(input):
+        pii = extract_pii(input)
+    else:
+        pii = input
+
+
+    s = requests.Session()
+
     if verbose:
         print('Requesting main page for pii: %s' % pii)
     r = s.get(BASE_URL +  pii,cookies={'Site':'Mobile'})
-    
-    
+
+
     # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
     # The reference tags contain most of the information about references
     # They are however missing a lot of the linking information
     # e.g. link to the article, pdf download, etc
     soup = BeautifulSoup(r.text)
-    
+
     reference_section = soup.find(*REFERENCE_SECTION_TAG_TUPLE)  
     
     if reference_section is None:
@@ -734,5 +725,57 @@ def _update_counts(s,eids,resolve_url):
     #TODO: go through refs and apply new values ...  
     
 
-def get_entry_info(url, verbose=False, session=None):
-    return ScienceDirectEntry(url, verbose, session)
+def get_entry_info(input, verbose=False):
+    soup = make_soup(input, 'entry', verbose)
+    return ScienceDirectEntry(soup, verbose)
+
+
+def make_soup(input, type, verbose=False):
+    # Check if the input is a DOI or URL
+    if is_url(input):
+        pii = extract_pii(input)
+    else:
+        pii = input
+
+    # Web page retrieval
+    #-------------------
+    soup = connect(pii, type, verbose)
+    return soup
+
+
+def is_url(input):
+    if input.find('sciencedirect') != -1:
+        return True
+    else:
+        return False
+
+
+def extract_pii(url):
+    # Extract the DOI from the URL
+    # Get everything between 'sciencedirect.com/science/article/pii/' and the URL ending
+    #pii = re.findall('pii/(.*?)', url, re.DOTALL)
+
+    #We're grabbing everything after the last '/'
+    pii = re.search('[^pii/]+$',url).group(0)
+
+    return pii
+
+
+def connect(pii, type, verbose=None):
+    # Construct valid ScienceDirect URL from given DOI
+    url = _SD_URL + '/science/article/pii/' + pii
+
+    # Web page retrieval
+    #-------------------
+    s = requests.Session()
+
+    if verbose:
+        print('Requesting main page for doi: %s' % pii)
+
+    # Using the mobile version of ScienceDirect
+    # This is to avoid dynamically loading page features on the desktop site
+    # and because the mobile site has more cleanly organized information
+    r = s.get(url, cookies={'Site':'Mobile'})
+    soup = BeautifulSoup(r.text)
+
+    return soup

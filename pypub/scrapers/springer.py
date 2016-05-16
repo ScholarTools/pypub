@@ -259,8 +259,6 @@ class SpringerRef(object):
 
         """
 
-        self.ref_tags = ref_tags
-
         # Reference Bibliography Section:
         #--------------------------------
         self.ref_id = ref_id + 1 # Input is 0 indexed

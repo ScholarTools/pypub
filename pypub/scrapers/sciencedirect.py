@@ -99,7 +99,7 @@ class ScienceDirectAuthor(object):
         self._data_refs = re.compile('[^\S]+').split(li_tag['data-refs'])
         # This is a list:
         # http://www.crummy.com/software/BeautifulSoup/bs4/doc/#multi-valued-attributes
-        self._class = li_tag['class']
+        #self._class = li_tag['class']
 
         # Extract all integers from the superscripted text
         # This way each author object has a list of superscripts
@@ -129,6 +129,7 @@ class ScienceDirectAuthor(object):
         return u'' + \
                 'name: %s, ' % self.raw + \
         'affiliations: %s\n' % self.affiliations + \
+        'aff type: %s\n' % str(type(self.affiliations)) + \
                'email: %s\n' % self.email
 
 class ScienceDirectEntry(object):
@@ -210,9 +211,11 @@ class ScienceDirectEntry(object):
         aff_names = []
         for x in aff_tags:
             superscripts.append(x.find('span').text)
-            aff_names.append(x.contents[1])
+            aff_names.append(str(x.contents[1]))
 
         aff_dict = dict(zip(superscripts, aff_names))
+        #print(aff_dict.keys())
+        #print(aff_dict.values())
 
         # For each author, the aff_dict is used to assign the appropriate affiliation(s) to the author
         for author in self.authors:

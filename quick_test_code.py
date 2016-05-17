@@ -36,23 +36,23 @@ wtf = cr.getMeta(DOI)
 """
 
 """
-from pypub import elsevier as evil
-evil.search_scienceDirect('Mountcastle')
+from pypub import elsevier as el
+el.search_scienceDirect('Mountcastle')
 """
 
 '''
-from pypub import elsevier as evil
+from pypub import elsevier as el
 
-evil.search_scopus('PMID(18430976)')
+el.search_scopus('PMID(18430976)')
 
-eid = evil.get_scopus_eid_from_pmid('18430976')
+eid = el.get_scopus_eid_from_pmid('18430976')
 
 
 eid = '2-s2.0-84896533932'
 
-raw_refs = evil.get_raw_references_from_eid(eid)
+raw_refs = el.get_raw_references_from_eid(eid)
 
-evil.parse_raw_references(raw_refs)
+el.parse_raw_references(raw_refs)
 '''
 
 

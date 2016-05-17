@@ -1,45 +1,38 @@
-import pytest
-
-from ..scrapers import sciencedirect as sd
-import requests
-from bs4 import BeautifulSoup
+from pypub.scrapers import sciencedirect as sd
+from pypub.utils import convert_to_dict
 import json
+import os
+
+curpath = str(os.path.dirname(os.path.abspath(__file__)))
 
 # Sample journal article
 link = 'http://www.sciencedirect.com/science/article/pii/S0006899313013048'
 pii = 'S0006899313013048'
 
-# Retrieve soup of content and references from live site
-#s = requests.session()
-#r = s.get(link, cookies={'Site':'Mobile'})
-#soup = BeautifulSoup(r.text)
-#content = soup.find('div', {'id' : 'article-abstract'})
-#references = soup.find('ol', {'class' : 'article-references'})
-
 # Run scraper on live site
 entry = sd.get_entry_info(link)
 refs = sd.get_references(pii)
 
+# Make scraped entry into a dict
+entry_dict = convert_to_dict(entry)
+
+# Make a list of refs as dict objects
+refs_dicts = []
+for x in range(len(refs)):
+    refs_dicts.append(convert_to_dict(refs[x]))
+
 # Load cached version of content and references
-with open('saved_sites/sd_entry.txt') as fe:
+with open(curpath + '/saved_sites/sd_entry.txt') as fe:
     saved_entry = fe.read()
 
-with open('saved_sites/sd_references.txt') as fr:
+with open(curpath + '/saved_sites/sd_references.txt') as fr:
     saved_refs = fr.read()
 
+# Make the saved versions into dicts
 saved_entry = json.loads(saved_entry)
 saved_refs = json.loads(saved_refs)
 
-
-# Make scraped entry into a dict
-entry_dict = entry.__dict__
-
-#
-refs_dicts = []
-for x in range(len(refs)):
-    refs_dicts.append(refs[x].__dict__)
-
-#assert 0
+# ----------------------
 
 # Testing return types
 def test_entry_type():

@@ -24,6 +24,17 @@ def get_truncated_display_string(input_string,max_length = 50):
     else:
         return input_string
 
+def convert_to_dict(obj):
+    obj = obj.__dict__
+    for k in obj:
+        if isinstance(obj[k], list):
+            try:
+                obj[k] = [convert_to_dict(x) for x in obj[k]]
+            except AttributeError:
+                pass
+    return obj
+
+
 def findValue(tags, tag_name, label_name, label_type):
         """
         This is a small helper that is used to pull out values from a tag

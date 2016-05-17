@@ -1,50 +1,37 @@
-import pytest
-
-from ..scrapers import springer as sp
-import requests
-from bs4 import BeautifulSoup
+from pypub.scrapers import springer as sp
+from pypub.utils import convert_to_dict
 import json
+import os
+
+curpath = str(os.path.dirname(os.path.abspath(__file__)))
 
 # Sample journal article
 link = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
 pii = '10.1186/s12984-016-0150-9'
 
-# Retrieve soup of content and references from live site
-#s = requests.session()
-#r = s.get(link)
-#soup = BeautifulSoup(r.text)
-
-#content = soup.find('div', {'class' : 'ArticleHeader'})
-#references = soup.find('ol', {'class' : 'BibliographyWrapper'})
-
 # Run scraper on live site
 entry = sp.get_entry_info(link)
 refs = sp.get_references(pii)
 
+# Make scraped entry into a dict
+entry_dict = convert_to_dict(entry)
+
+# Make a list of refs as dict objects
+refs_dicts = []
+for x in range(len(refs)):
+    refs_dicts.append(convert_to_dict(refs[x]))
+
 # Load cached version of content and references
-with open('saved_sites/sp_entry.txt') as fe:
+with open(curpath + '/saved_sites/sp_entry.txt') as fe:
     saved_entry = fe.read()
 
-with open('saved_sites/sp_references.txt') as fr:
+with open(curpath + '/saved_sites/sp_references.txt') as fr:
     saved_refs = fr.read()
 
 saved_entry = json.loads(saved_entry)
 saved_refs = json.loads(saved_refs)
 
-# Make scraped entry into a dict
-entry_dict = entry.__dict__
-
-# Change all author info from [scraper]Author objects to str objects
-for x in range(len(entry_dict['authors'])):
-    entry_dict['authors'][x] = str(entry_dict['authors'][x])
-
-#
-refs_dicts = []
-for x in range(len(refs)):
-    refs_dicts.append(refs[x].__dict__)
-
-
-#assert 0
+# ----------------------
 
 # Testing return types
 def test_entry_type():

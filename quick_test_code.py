@@ -58,7 +58,7 @@ el.parse_raw_references(raw_refs)
 
 # Science Direct
 #=====================================================
-
+'''
 from pypub.scrapers import sciencedirect as sd
 
 #sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
@@ -68,15 +68,18 @@ sd_pii = 'S0006899313013048'
 entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
 
-#refs = sd.get_references(sd_link, verbose=True)
-#print(refs[0])
+refs = sd.get_references(sd_link, verbose=True)
+print(refs[0])
 
+import pdb
+pdb.set_trace()
+'''
 
 # Wiley
 #=====================================================
-'''
-from pypub.scrapers import wiley as wy
 
+from pypub.scrapers import wiley as wy
+'''
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
 wiley_doi = '10.1002/biot.201400046'
 
@@ -86,14 +89,16 @@ print(entry)
 refs = wy.get_references(wiley_link, verbose=True)
 print('%i references returned' % len(refs))
 print(refs[0])
-'''
 
+pdf_link = wy.get_pdf_link(wiley_link)
+print(pdf_link)
+'''
 '''
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/abstract'
 wiley_doi = '10.1111/j.1464-4096.2004.04875.x'
 '''
 
-'''
+
 # New example with more recent article
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/bit.25159/abstract'
 wiley_doi = '10.1002/bit.25159'
@@ -104,7 +109,10 @@ print(entry)
 refs = wy.get_references(wiley_link, verbose=True)
 print('%i references returned' % len(refs))
 print(refs[0])
-'''
+
+pdf_link = wy.get_pdf_link(wiley_link)
+print(pdf_link)
+
 
 
 # Springer - doesn't work yet

@@ -9,12 +9,14 @@ Generic code for other code
 import inspect
 from bs4 import BeautifulSoup
 
+
 def get_class_list_display_string(input_list):
     if len(input_list) == 0:
         return '[]'
     else:
         class_name = type(input_list[0]).__name__
         return 'len:%s [%s]' % (len(input_list),class_name)
+
 
 def get_truncated_display_string(input_string,max_length = 50):
     if input_string is None:
@@ -23,6 +25,7 @@ def get_truncated_display_string(input_string,max_length = 50):
         return str(input_string[:max_length]) + '...'
     else:
         return input_string
+
 
 def convert_to_dict(obj):
     obj = obj.__dict__
@@ -93,6 +96,7 @@ def assign_props_with_function(obj,d_obj,prop_key_info):
             
     return ObjectAssignmentSummary(d_obj,present,missing)
 
+
 class ObjectAssignmentSummary():
 
     """ 
@@ -120,6 +124,7 @@ class ObjectAssignmentSummary():
         
     def __repr__(self): 
         return print_object(self)
+
 
 def print_object(obj):
 

@@ -34,17 +34,13 @@ a Wiley URL.
 import sys
 import os
 
-#TODO: Move this into a compatability module
-#-----------------------------------------------------
-PY2 = sys.version_info.major == 2
-
-if PY2:
+if sys.version_info.major == 2:
     from urllib import unquote as urllib_unquote
     from urllib import quote as urllib_quote
 else:
     from urllib.parse import unquote as urllib_unquote
     from urllib.parse import quote as urllib_quote
-#-----------------------------------------------------
+# -----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
@@ -53,7 +49,6 @@ from ..utils import findValue
 from .. import errors
 
 import re
-#-------------------
 import requests
 from bs4 import BeautifulSoup
 
@@ -376,7 +371,6 @@ class WileyRef(object):
         'web of science times cited: %s\n' % self.citetimes
 
 
-
 def get_references(input, verbose=False):
     """
     This function gets references for a Wiley URL that is of the
@@ -452,6 +446,51 @@ def get_references(input, verbose=False):
     #All done!
     #---------
     return ref_objects
+
+
+def get_pdf_link(input):
+    """
+    Takes a DOI or article URL and returns the link to the pdf.
+    This function currently does this by scraping the website and finding
+    the link used in the "Get PDF" button on the site, but Wiley is nice
+    and an alternate way of getting it is to just make the URL suffix
+    '/pdf' or '/epdf'. It seems like in the new version of the article
+    pages, /epdf is preferred, though /pdf is still supported.
+
+    Ex: https://onlinelibrary.wiley.com/doi/10.########/pdf
+
+    Parameters
+    ----------
+    input : str
+        Can be either a DOI or a URL to an article page.
+
+    Returns
+    -------
+    pdf_link : str
+        URL directly to the article pdf
+    """
+    '''
+    soup = make_soup(input, 'entry')
+
+    # Get entry content information
+    toolbar = soup.find('div', {'id' : 'promosAndTools'})
+    if toolbar is None:
+        raise errors.ParseException('Unable to find toolbar section of page')
+
+    links = toolbar.find('li', {'class' : 'readcubePdf'})
+    href = links.find('a', {'class' : 'readcubePdfLink'})['href']
+    pdf_link = _WY_URL + href
+    '''
+    if is_url(input):
+        doi = extract_doi(input)
+    elif is_doi(input):
+        doi = input
+    else:
+        raise ValueError('Input not recognized as a valid DOI or Wiley URL')
+
+    pdf_link = _WY_URL + '/doi/' + doi + '/pdf'
+
+    return pdf_link
 
 
 def get_entry_info(input, verbose=False):

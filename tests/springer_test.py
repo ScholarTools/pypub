@@ -48,8 +48,10 @@ def test_reflist_type():
 def test_springer_saved_entry():
     for x in saved_entry.keys():
         if saved_entry[x] != entry_dict[x]:
-            print(type(saved_entry[x][0]))
-            print(type(entry_dict[x][0]))
+            print('\nDifference found.')
+            print('Key: ' + str(x))
+            print('Saved value: ' + str(saved_entry[x]))
+            print('Live value: ' + str(entry_dict[x]))
             assert False
     assert True
 
@@ -57,6 +59,10 @@ def test_springer_saved_refs():
     for y in range(len(saved_refs)):
         for x in saved_refs[y].keys():
             if saved_refs[y][x] != refs_dicts[y][x]:
+                print('\nDifference found.')
+                print('Key: ' + str(x))
+                print('Saved value: ' + str(saved_refs[y][x]))
+                print('Live value: ' + str(refs_dicts[y][x]))
                 assert False
     assert True
 

@@ -5,6 +5,7 @@ NOTE: CHANGE FILENAME IN LAST FEW LINES FOR EACH NEW SCRAPER
 import json
 import os
 
+# NOTE: ALSO CHANGE FILENAMES FOR EACH NEW SCRAPER
 from pypub.scrapers import wiley as scraper
 from pypub.utils import convert_to_dict
 

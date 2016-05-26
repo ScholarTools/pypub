@@ -73,8 +73,7 @@ class ScienceDirectAuthor(object):
             - corresponding author info
             - email author
         2) Split name into parts
-        
-        
+
         """
         # class="author-group" id="augrp0010"
         # author small
@@ -87,13 +86,14 @@ class ScienceDirectAuthor(object):
         # class="author-affiliations" id="augrp0010"
         #   class="affiliation" id="aff1"        
 
-        # 1) Get text that is not in sup DONE
-        # 2) Grab data-refs "aff1,aff2,etc" DONE
-        # 3)
-
         # 1st bit of text is the name, then we have
         self.raw = li_tag.contents[0]
-        self._data_refs = re.compile('[^\S]+').split(li_tag['data-refs'])
+        # KeyError would mean that there are no superscripted affiliations.
+        # In this case, just set self._data_refs to None and keep moving.
+        try:
+            self._data_refs = re.compile('[^\S]+').split(li_tag['data-refs'])
+        except KeyError:
+            self._data_refs = None
         # This is a list:
         # http://www.crummy.com/software/BeautifulSoup/bs4/doc/#multi-valued-attributes
         # self._class = li_tag['class']
@@ -101,16 +101,33 @@ class ScienceDirectAuthor(object):
         # Extract all integers from the superscripted text
         # This way each author object has a list of superscripts
         # corresponding to the affiliation list indices.
+
+
         super = li_tag.find_all('sup')
 
         supers = []
-        for x in range(len(super)):
-            if re.sub(r'\W+', '', super[x].text) == '':
-                pass
-            else:
-                supers.append(re.sub(r'\W+', '', super[x].text))
+        for x in super:
+            # Get text of superscripts
+            text = x.text
+
+            # Check if there are linked footnotes
+            # Footnotes are different from affiliations and do
+            # not correspond to any text in the affiliations list.
+            footnotes = x.find_all('a')
+            if footnotes is not None:
+                for footnote in footnotes:
+                    if footnote.text != '':
+                        text = text.replace(footnote.text, '')
+
+            # Clean up text and extract the numbers
+            text = text.replace(' ', '')
+            splitlist = text.split(',')
+            for num in splitlist:
+                if num != '':
+                    supers.append(num)
 
         self.supers = supers
+
 
         contact = li_tag.find('a', {'class': 'icon-email-author'})
         if contact == None:
@@ -327,7 +344,7 @@ class ScienceDirectRef(object):
         if r_source_tag is not None:
             pub_tag = r_source_tag.find('span', {'class': 'r_publication'})
             if pub_tag is not None:
-                self.publication = pub_tag.text
+                self.publication = pub_tag.text.replace('\\xa0', ' ')
 
         temp_volume = findValue(ref_tags, 'span', 'r_volume', 'class')
         if temp_volume is None:
@@ -711,12 +728,25 @@ def _update_counts(s, eids, resolve_url):
     return cited_by_results
 
 
-def get_entry_info(input, verbose=False):
-    soup = make_soup(input, 'entry', verbose)
+def get_entry_info(input, verbose=False, soup=None):
+    if soup is None:
+        soup = make_soup(input, verbose)
     return ScienceDirectEntry(soup, verbose)
 
 
-def make_soup(input, type, verbose=False):
+def get_pdf_link(input, verbose=False, soup=None):
+    if soup is None:
+        soup = make_soup(input, verbose)
+
+    navbar = soup.find('ul', {'class' : 'navigation'})
+    pdf_link = navbar.find('a', {'id' : 'pdfLink'})['href']
+    return pdf_link
+
+def get_all_info(input, verbose=False):
+    pass
+
+
+def make_soup(input, verbose=False):
     # Check if the input is a DOI or URL
     if is_url(input):
         pii = extract_pii(input)
@@ -725,7 +755,7 @@ def make_soup(input, type, verbose=False):
 
     # Web page retrieval
     # -------------------
-    soup = connect(pii, type, verbose)
+    soup = connect(pii, verbose)
     return soup
 
 
@@ -747,7 +777,7 @@ def extract_pii(url):
     return pii
 
 
-def connect(pii, type, verbose=None):
+def connect(pii, verbose=None):
     # Construct valid ScienceDirect URL from given DOI
     url = _SD_URL + '/science/article/pii/' + pii
 

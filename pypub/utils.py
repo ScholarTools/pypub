@@ -67,7 +67,8 @@ def findValue(tags, tag_name, label_name, label_type):
         if temp is None:
             return None
         else:
-            return temp.text
+            text = temp.text.replace('\\xa0', ' ')
+            return text
 
 
 def assign_props_with_function(obj,d_obj,prop_key_info):

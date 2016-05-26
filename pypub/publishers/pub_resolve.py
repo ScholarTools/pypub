@@ -29,8 +29,6 @@ def resolve_link(link):
 
     base_url = link[:link.find('.com')+4]
 
-    import pdb
-
 
     # Get absolute path to CSV file
     current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))

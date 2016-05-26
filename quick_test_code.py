@@ -65,6 +65,8 @@ from pypub.scrapers import sciencedirect as sd
 sd_link = 'http://www.sciencedirect.com/science/article/pii/S0006899313013048'
 sd_pii = 'S0006899313013048'
 
+sd_link = 'http://www.sciencedirect.com/science/article/pii/S0092867413004674'
+
 entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
 
@@ -72,7 +74,7 @@ refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])
 
 import pdb
-pdb.set_trace()
+#pdb.set_trace()
 '''
 
 # Wiley
@@ -98,7 +100,7 @@ wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.
 wiley_doi = '10.1111/j.1464-4096.2004.04875.x'
 '''
 
-
+'''
 # New example with more recent article
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/bit.25159/abstract'
 wiley_doi = '10.1002/bit.25159'
@@ -112,10 +114,10 @@ print(refs[0])
 
 pdf_link = wy.get_pdf_link(wiley_link)
 print(pdf_link)
+'''
 
 
-
-# Springer - doesn't work yet
+# Springer
 #=====================================================
 '''
 from pypub.scrapers import springer as sp
@@ -135,6 +137,15 @@ import json
 print(json.dumps(refs[0]))
 '''
 
+# Nature
+#=====================================================
+
+from pypub.scrapers import nature as nt
+
+nt_link = 'http://www.nature.com/nature/journal/v482/n7385/full/nature10886.html'
+
+entry = nt.get_entry_info(nt_link, verbose=True)
+print(entry)
 
 
 """

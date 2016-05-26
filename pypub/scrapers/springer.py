@@ -376,7 +376,7 @@ def get_references(input, verbose=False):
 
     # Step 1 - Make the request
     #--------------------------------------------------------------------------
-    soup = make_soup(input, 'references', verbose)
+    soup = make_soup(input, verbose)
 
     # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
@@ -423,11 +423,26 @@ def get_references(input, verbose=False):
     return ref_objects
 
 
-def get_entry_info(input, verbose=False):
-    soup = make_soup(input, 'entry', verbose)
+def get_entry_info(input, verbose=False, soup=None):
+    if soup is None:
+        soup = make_soup(input, verbose)
     return SpringerEntry(soup, verbose)
 
-def make_soup(input, type, verbose=False):
+
+def get_pdf_link(input, verbose=False, soup=None):
+    if soup is None:
+        make_soup(input, verbose)
+
+    dropdown = soup.find('div', {'class' : 'button-dropdown--linkgroup'})
+    pdf_link = dropdown.find('a', {'title' : 'Download this article in PDF format'})['href']
+    return pdf_link
+
+
+def get_all_info():
+    pass
+
+
+def make_soup(input, verbose=False):
     # Check if the input is a DOI or URL
     if is_url(input):
         doi = extract_doi(input)
@@ -438,7 +453,7 @@ def make_soup(input, type, verbose=False):
 
     # Web page retrieval
     #-------------------
-    soup = connect(doi, type, verbose)
+    soup = connect(doi, verbose)
     return soup
 
 
@@ -466,7 +481,7 @@ def extract_doi(url):
     return doi
 
 
-def connect(doi, type, verbose=None):
+def connect(doi, verbose=None):
 
     # Construct valid SpringerLink URL from given DOI
     url = _SP_URL + '/article/' + doi

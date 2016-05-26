@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-http://onlinelibrary.wiley.com/doi/10.1111/j.1440-1681.1976.tb00619.x/abstract
+http://www.nature.com/nature/journal/v482/n7385/full/nature10886.html
 
-Module: pypub.scrapers.wiley
+Module: pypub.scrapers.nature
 
 Status: In progress
 
@@ -16,17 +16,17 @@ Status: In progress
 Tasks/Examples:
 ---------------
 1) ****** Get references given a doi value *******
-from pypub.scrapers import wiley as wy
+from pypub.scrapers import nature as nt
 
-refs = wy.get_references('0006899387903726',verbose=True)
+refs = nt.get_references('0006899387903726',verbose=True)
 
-refs = wy.get_references('S1042368013000776',verbose=True)
+refs = nt.get_references('S1042368013000776',verbose=True)
 
 df = refs[0].to_data_frame(refs)
 
 
 Currently I am building something that allows extraction of references from
-a Wiley URL.
+a Nature URL.
 
 
 """
@@ -53,19 +53,14 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-_WY_URL = 'http://onlinelibrary.wiley.com'
+_NT_URL = 'http://nature.com'
 
-class WileyAuthor(object):
+
+class NatureAuthor(object):
 
     def __init__(self, li_tag):
 
         """
-
-        Example:
-        <div id="articleMeta"><ol id="authors"><li id="cr1">J. Cleese<sup>*</sup> and</li><li id="cr2">G. Chapman</li>
-        </ol> <div id="authorsDetail"><h4>Author Information</h4><ol id="authorsAffiliations" class="singleton"><li
-            class="affiliation"><p> University</p></li></ol><p id="correspondence"><sup>*</sup>Correspondence: J. Cleese
-            at University</p></div>
 
         Parameters
         ----------
@@ -84,26 +79,44 @@ class WileyAuthor(object):
         """
 
         # Get author name
-        self.name = li_tag.contents[0]
-
+        self.name = li_tag.find('span', {'class' : 'fn'}).text
 
 
         # Extract all integers from the superscripted text
         # This way each author object has a list of superscripts
         # corresponding to the affiliation list indices.
-        super = li_tag.find('sup').text
-        self.superscripts = re.findall(r'\d+', super)
+        # For some reason, the superscripts aren't actually visible
+        # on the Nature site. But they exist in the HTML.
 
-        if super.find('*') != -1:
-            self.contact = 1
-        else:
-            self.contact = None
+        super = li_tag.find_all('sup')
 
+        supers = []
+        for x in super:
+            # Get text of superscripts
+            text = x.text
+
+            # Check if there are linked footnotes
+            # Footnotes are different from affiliations and do
+            # not correspond to any text in the affiliations list.
+            footnotes = x.find_all('a')
+            if footnotes is not None:
+                for footnote in footnotes:
+                    if footnote.text != '':
+                        text = text.replace(footnote.text, '')
+
+            # Clean up text and extract the numbers
+            text = text.replace(' ', '')
+            splitlist = text.split(',')
+            for num in splitlist:
+                if num != '':
+                    supers.append(num)
+
+        self.supers = supers
         self.email = None
 
     #
     def populate_affiliations(self,aff_labels):
-        self.affiliations = [aff_labels[int(x)-1] for x in self.superscripts]
+        self.affiliations = [aff_labels[int(x)-1] for x in self.supers]
 
     def __repr__(self):
         return u'' + \
@@ -112,7 +125,7 @@ class WileyAuthor(object):
              'email: %s\n' % self.email
 
 
-class WileyEntry(object):
+class NatureEntry(object):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper.
@@ -124,13 +137,13 @@ class WileyEntry(object):
 
     See Also
     ----------
-    WileyRef
+    NatureRef
 
     Examples
     ----------
-    from pypub.scrapers import wiley as wy
-    url = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1440-1681.1976.tb00619.x/references'
-    wye = wy.WileyEntry(url,verbose=True)
+    from pypub.scrapers import nature as nt
+    url = 'http://www.nature.com/nature/journal/v482/n7385/full/nature10886.html'
+    nte = nt.NatureEntry(url,verbose=True)
 
     Improvements
     ----------
@@ -140,67 +153,60 @@ class WileyEntry(object):
     def __init__(self, soup, verbose=False):
 
         # Get entry content information
-        mainContent = soup.find('div', {'id' : 'mainContent'})
+        mainContent = soup.find('header')
         if mainContent is None:
             raise errors.ParseException('Unable to find main content of page')
 
 
         # Metadata:
         #---------------
-        self.title = findValue(mainContent, 'span', 'mainTitle', 'class').title()
+        self.title = findValue(mainContent, 'h1', 'article-heading', 'class')
 
-        self.publication = findValue(mainContent, 'h2', 'productTitle', 'id')
+        # Isolate the entry citation line
+        citation = mainContent.find('dl', {'class' : 'citation'})
+
+        self.publication = findValue(citation, 'dd', 'journal-title', 'class')
 
         # For old journal issues, two dates are given: original publication date and
         # online publication date. This returns the original journal pub date.
-        self.date = findValue(mainContent, 'span', 'issueDate', 'id')
+        self.date = citation.find('time').text[1:-1] # Get rid of parentheses surrounding it
         self.year = self.date[-4:]
 
-        vol = findValue(mainContent, 'span', 'volumeNumber', 'id')
-        issue = findValue(mainContent, 'span', 'issueNumber', 'id')
-        self.volume = vol + ', ' + issue
+        # Get rid of commas and whitespace from volume
+        vol = findValue(citation, 'dd', 'volume', 'class').replace(',', '')
+        self.volume = vol.replace(' ', '')
 
-        self.pages = findValue(mainContent, 'span', 'issuePages', 'id')
-        self.pages = self.pages[6:] # to get rid of 'pages: ' at the beginning
+        self.pages = findValue(citation, 'dd', 'page', 'class')
 
-        # TODO: Fix this keyword stuff
-        keybox = soup.find('ul', {'class' : 'keywordList'})
-        #if keybox is None:
-        #    raise errors.ParseException('Unable to find keywords')
-        #wordlist = keybox.find_all('li')
-        #self.keywords = [w.text for w in wordlist]
+        # Nature pages for some reason don't list keywords...
         self.keywords = None
 
         # DOI Retrieval:
         #---------------
         # This might be more reliable than assuming we have the DOI in the title
-        self.doi = findValue(mainContent, 'p', 'doi', 'id')
-        self.doi = self.doi[5:] # to get rid of 'DOI: ' at the beginning
-
+        self.doi = findValue(citation, 'dd', 'doi', 'class')
+        self.doi = self.doi[4:] # to get rid of 'DOI:' at the beginning
 
         # Authors:
         #---------
         # Find list items within the ordered list with id 'authors'
-        authorList = mainContent.find('ol', {'id':'authors'}).find_all('li')
-        self.authors = [WileyAuthor(x) for x in authorList]
+        authorList = mainContent.find('ul', {'class':'authors'}).find_all('li')
+        self.authors = [NatureAuthor(x) for x in authorList]
 
-        # Find all list items with the 'affiliation' class
-        # The content is kept in a <p> tag within each list item
-        aff_tags = mainContent.find_all('li', {'class' : 'affiliation'})
-        self.affiliations = [a.find('p').text for a in aff_tags]
+        # Get list of affiliations from bottom of page
+        author_info = soup.find('div', {'id' : 'author-information'})
+        aff_section = author_info.find('ol', {'class' : 'affiliations'})
+        aff_tags = aff_section.find_all('li')
+        self.affiliations = [a.find('h3').text for a in aff_tags]
 
-        # Clean up strings - Not sure if necessary
-        for a in range(len(self.affiliations)):
-            self.affiliations[a] = self.affiliations[a].replace(', and ', '')
-            self.affiliations[a] = self.affiliations[a].replace('            ', '')
-
-        corr = mainContent.find('p', {'id' : 'correspondence'})
-        email = findValue(corr, 'a', 'Link to email address', 'title')
+        corr = author_info.find('a', {'class' : 'contact'})
+        corr_name = corr.text
+        email = _NT_URL + corr['href']
 
         # Assign affiliations to authors
         for author in self.authors:
             author.populate_affiliations(self.affiliations)
-            if author.contact == 1:
+            if author.name == corr_name:
                 author.email = email
 
 
@@ -217,14 +223,9 @@ class WileyEntry(object):
         '        doi: %s\n' % self.doi
 
 
-    @classmethod
-    def from_doi(doi):
-        return WileyEntry(_WY_URL + '/doi/' + str(doi) + '/abstract')
-
-
 # TODO: Inherit from some abstract ref class
 # I think the abstract class should only require conversion to a common standard
-class WileyRef(object):
+class NatureRef(object):
     """
     This is the result class of calling get_references. It contains the
     bibliographic information about the reference, as well as additional meta
@@ -335,22 +336,22 @@ class WileyRef(object):
                     if self.doi == -1:
                         self.doi = None
                     self.doi = urllib_unquote(self.doi)
-                    # CrossRef link is in the form of _WY_URL/resolve/reference/XREF?id=10.#######
-                    self.crossref = _WY_URL + urllib_unquote(href)
+                    # CrossRef link is in the form of _NT_URL/resolve/reference/XREF?id=10.#######
+                    self.crossref = _NT_URL + urllib_unquote(href)
                 elif 'pubmed' in label:
                     self.pubmed_id = re.search('[^id=]+$',href).group(0)[1:] # the [1:] is to get rid of leading '='
                     self.pubmed_id = urllib_unquote(self.pubmed_id)
-                    self.pubmed = _WY_URL + urllib_unquote(href)
+                    self.pubmed = _NT_URL + urllib_unquote(href)
                 elif 'web ' in label:
                     self.citetimes = re.search('[^: ]+$',label).group(0)
                 elif label in ('cas', 'cas,'):
-                    self.cas = _WY_URL + urllib_unquote(href)
+                    self.cas = _NT_URL + urllib_unquote(href)
                 elif 'abstract' in label:
-                    self.abstract = _WY_URL + urllib_unquote(href)
+                    self.abstract = _NT_URL + urllib_unquote(href)
                 elif 'pdf' in label:
-                    self.pdf_link = _WY_URL + urllib_unquote(href)
+                    self.pdf_link = _NT_URL + urllib_unquote(href)
                 elif 'references' in label:
-                    self.ref_references = _WY_URL + urllib_unquote(href)
+                    self.ref_references = _NT_URL + urllib_unquote(href)
 
 
     def __repr__(self):
@@ -403,7 +404,7 @@ def get_references(input, verbose=False):
 
     # Step 1 - Make the request
     #--------------------------------------------------------------------------
-    soup = make_soup(input, 'references', verbose)
+    soup = make_soup(input, verbose)
 
     # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
@@ -440,7 +441,7 @@ def get_references(input, verbose=False):
     # as well as external links.
     if verbose:
         print('Creating reference objects')
-    ref_objects = [WileyRef(ref_tag, ref_id) for \
+    ref_objects = [NatureRef(ref_tag, ref_id) for \
                     ref_tag, ref_id in \
                     zip(ref_tags, range(n_refs))]
 
@@ -472,7 +473,7 @@ def get_pdf_link(input):
         URL directly to the article pdf
     """
     '''
-    soup = make_soup(input, 'entry')
+    soup = make_soup(input)
 
     # Get entry content information
     toolbar = soup.find('div', {'id' : 'promosAndTools'})
@@ -481,7 +482,7 @@ def get_pdf_link(input):
 
     links = toolbar.find('li', {'class' : 'readcubePdf'})
     href = links.find('a', {'class' : 'readcubePdfLink'})['href']
-    pdf_link = _WY_URL + href
+    pdf_link = _NT_URL + href
     '''
     if is_url(input):
         doi = extract_doi(input)
@@ -490,15 +491,15 @@ def get_pdf_link(input):
     else:
         raise ValueError('Input not recognized as a valid DOI or Wiley URL')
 
-    pdf_link = _WY_URL + '/doi/' + doi + '/pdf'
+    pdf_link = _NT_URL + '/doi/' + doi + '/pdf'
 
     return pdf_link
 
 
 def get_entry_info(input, verbose=False, soup=None):
     if soup is None:
-        soup = make_soup(input, 'entry', verbose)
-    return WileyEntry(soup, verbose)
+        soup = make_soup(input, verbose)
+    return NatureEntry(soup, verbose)
 
 
 def get_all_info(input, verbose=False):
@@ -532,23 +533,20 @@ def get_all_info(input, verbose=False):
     pass
 
 
-def make_soup(input, type, verbose=False):
+def make_soup(input, verbose=False):
     # Check if the input is a DOI or URL
     if is_url(input):
-        doi = extract_doi(input)
+        soup = connect(input, isLink=True, verbose=verbose)
     elif is_doi(input):
-        doi = input
+        soup = connect(input, isLink=False, verbose=verbose)
     else:
-        raise ValueError('Input not recognized as a valid DOI or Wiley URL')
+        raise ValueError('Input not recognized as a valid DOI or Nature URL')
 
-    # Web page retrieval
-    #-------------------
-    soup = connect(doi, type, verbose)
     return soup
 
 
 def is_url(input):
-    if input.find('wiley') != -1:
+    if input.find('nature') != -1:
         return True
     else:
         return False
@@ -575,37 +573,27 @@ def extract_doi(url):
     return doi
 
 
-def connect(doi, type, verbose=None):
-    # Add the correct URL suffix:
-    if type == 'references':
-        SUFFIX = '/references'
-    elif type == 'entry':
-        SUFFIX = '/abstract'
-    else:
-        SUFFIX = None
+def connect(input, isLink=False, verbose=None):
 
-    # Construct valid Wiley URL from given DOI
-    url = _WY_URL + '/doi/' + doi + SUFFIX
+    # Construct valid Nature URL from given DOI
+    # TODO: figure out how to get URL from DOI
+
+    if isLink:
+        url = input
+
 
     # Web page retrieval
     #-------------------
     s = requests.Session()
 
     if verbose:
-        print('Requesting main page for doi: %s' % doi)
+        print('Requesting main page for: %s' % url)
 
-    r = s.get(url)
-    soup = BeautifulSoup(r.text)
+    resp = s.get(url)
+    soup = BeautifulSoup(resp.text)
 
-    #
-    # Some newer journals/articles are using an updated, minimalistic page layout.
-    # This isn't compatible with the HTML tags of the old version, so we need to
-    # check for that and use the old site view if necessary.
-    #
-    backlink = soup.find('a', {'id' : 'wol1backlink'})
-    if backlink is not None:
-        url = _WY_URL + '/wol1/doi/' + doi + '/references'
-        r = requests.session().get(url)
-        soup = BeautifulSoup(r.text)
+    #with open('test_site.html', 'wb') as file:
+    #    file.write(resp.content)
+
 
     return soup

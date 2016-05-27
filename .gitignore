@@ -3,3 +3,7 @@ __pycache__\*
 /.idea/
 /pypub/config.py
 
+# files
+test_site.html
+test_pdf.pdf
+

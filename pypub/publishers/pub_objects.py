@@ -85,3 +85,8 @@ class Springer(Publisher):
                 raise LookupError('Response not HTML or a PDF.')
         else:
             raise LookupError('Could not get headers from web response.')
+
+
+class Nature(Publisher):
+    def extract_pdf(self, file_url):
+        raise LookupError('Not yet implemented')

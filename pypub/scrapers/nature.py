@@ -95,6 +95,7 @@ class NatureAuthor(object):
             # Get text of superscripts
             text = x.text
 
+            '''
             # Check if there are linked footnotes
             # Footnotes are different from affiliations and do
             # not correspond to any text in the affiliations list.
@@ -103,6 +104,7 @@ class NatureAuthor(object):
                 for footnote in footnotes:
                     if footnote.text != '':
                         text = text.replace(footnote.text, '')
+            '''
 
             # Clean up text and extract the numbers
             text = text.replace(' ', '')
@@ -112,6 +114,7 @@ class NatureAuthor(object):
                     supers.append(num)
 
         self.supers = supers
+        #self.affiliations = []
         self.email = None
 
     #
@@ -153,7 +156,8 @@ class NatureEntry(object):
     def __init__(self, soup, verbose=False):
 
         # Get entry content information
-        mainContent = soup.find('header')
+        content = soup.find('div', {'id' : 'content'})
+        mainContent = content.find('header')
         if mainContent is None:
             raise errors.ParseException('Unable to find main content of page')
 
@@ -174,7 +178,7 @@ class NatureEntry(object):
 
         # Get rid of commas and whitespace from volume
         vol = findValue(citation, 'dd', 'volume', 'class').replace(',', '')
-        self.volume = vol.replace(' ', '')
+        self.volume = vol.replace('\n', '')
 
         self.pages = findValue(citation, 'dd', 'page', 'class')
 
@@ -196,12 +200,13 @@ class NatureEntry(object):
         # Get list of affiliations from bottom of page
         author_info = soup.find('div', {'id' : 'author-information'})
         aff_section = author_info.find('ol', {'class' : 'affiliations'})
-        aff_tags = aff_section.find_all('li')
+        aff_tags = aff_section.find_all('li', recursive=False)
         self.affiliations = [a.find('h3').text for a in aff_tags]
 
         corr = author_info.find('a', {'class' : 'contact'})
         corr_name = corr.text
         email = _NT_URL + corr['href']
+
 
         # Assign affiliations to authors
         for author in self.authors:
@@ -213,14 +218,14 @@ class NatureEntry(object):
 
     def __repr__(self):
         return u'' + \
-        '      title: %s\n' % td(self.title) + \
-        '    authors: %s\n' % self.authors + \
-        '   keywords: %s\n' % self.keywords + \
-        'publication: %s\n' % self.publication + \
-        '       date: %s\n' % self.date + \
-        '     volume: %s\n' % self.volume + \
-        '      pages: %s\n' % self.pages + \
-        '        doi: %s\n' % self.doi
+            'title: %s\n' % td(self.title) + \
+            'authors: %s\n' % self.authors + \
+            'keywords: %s\n' % self.keywords + \
+            'publication: %s\n' % self.publication + \
+            'date: %s\n' % self.date + \
+            'volume: %s\n' % self.volume + \
+            'pages: %s\n' % self.pages + \
+            'doi: %s\n' % self.doi
 
 
 # TODO: Inherit from some abstract ref class
@@ -277,22 +282,22 @@ class NatureRef(object):
         # Reference Bibliography Section:
         #--------------------------------
         self.ref_id = ref_id + 1 # Input is 0 indexed
-        self.title = findValue(ref_tags, 'span', 'articleTitle', 'class')
-        authorlist = ref_tags.find_all('span', 'author', 'class')
+        self.title = findValue(ref_tags, 'span', 'title', 'class')
+        authorlist = ref_tags.find_all('span', {'class' : 'author'})
         self.authors = [x.text for x in authorlist]
 
         # Note: we can also get individual authors if we would like.
         #
-        # On Wiley, each reference author is given a separate <span> tag with the class 'author'
+        # Each reference author is given a separate <span> tag with the class 'author'
         # so individual authors can be extracted
         #
 
-        self.publication = findValue(ref_tags, 'span', 'journalTitle', 'class')
-        self.volume = findValue(ref_tags, 'span', 'vol', 'class')
-        self.date = findValue(ref_tags, 'span', 'pubYear', 'class')
+        self.publication = findValue(ref_tags, 'span', 'source-title', 'class')
+        self.volume = findValue(ref_tags, 'span', 'volume', 'class')
+        self.date = findValue(ref_tags, 'span', 'year', 'class')
 
-        firstp = findValue(ref_tags, 'span', 'pageFirst', 'class')
-        lastp = findValue(ref_tags, 'span', 'pageLast', 'class')
+        firstp = findValue(ref_tags, 'span', 'start-page', 'class')
+        lastp = findValue(ref_tags, 'span', 'end-page', 'class')
         if (firstp is not None) and (lastp is not None):
             self.pages = firstp + '-' + lastp
         else:
@@ -304,103 +309,66 @@ class NatureRef(object):
 
         self.crossref = None
         self.pubmed = None
-        self.pubmed_id = None
         self.doi = None
-        self.citetimes = None
         self.cas = None
-        self.abstract = None
-        self.pdf_link = None
-        self.ref_references = None
+        self.isi = None
+        self.ads = None
 
-        # External links (i.e. PubMed, CrossRef, CAS) are kept in a ul tag
-        # Internal links (i.e. direct to abstract, references, etc.) are in a div
-        # Need to check for both
-        links = ref_tags.find('ul', 'externalReferences', 'class')
-        if links is None:
-            links = ref_tags.find('div', 'internalReferences', 'class')
 
-        # Only proceed if either internal or external references were found
+        # All links are kept in a ul tag with the class 'cleared'
+        links = ref_tags.find('ul', {'class' : 'cleared'})
+
+        # Only proceed if links are found
         if links is not None:
             links = links.find_all('li')
 
             # Check against all possible link options and save links.
-            # href links are appended onto base URL ('http://onlinelibrary.wiley.com')
             #
             for link in links:
                 label = link.text.lower()
                 href = link.find('a', href=True)['href']
-                href = urllib_quote(href)
 
-                if 'crossref' in label:
+                if 'article' in label:
                     self.doi = href[href.find('10.'):] # Grab everything starting with '10.' in link
                     if self.doi == -1:
                         self.doi = None
-                    self.doi = urllib_unquote(self.doi)
-                    # CrossRef link is in the form of _NT_URL/resolve/reference/XREF?id=10.#######
-                    self.crossref = _NT_URL + urllib_unquote(href)
+                    # Called 'Article' link, but url is http://dx.doi.org/10.######
+                    # Redirects to article page
+                    self.crossref = href
                 elif 'pubmed' in label:
-                    self.pubmed_id = re.search('[^id=]+$',href).group(0)[1:] # the [1:] is to get rid of leading '='
-                    self.pubmed_id = urllib_unquote(self.pubmed_id)
-                    self.pubmed = _NT_URL + urllib_unquote(href)
-                elif 'web ' in label:
-                    self.citetimes = re.search('[^: ]+$',label).group(0)
-                elif label in ('cas', 'cas,'):
-                    self.cas = _NT_URL + urllib_unquote(href)
-                elif 'abstract' in label:
-                    self.abstract = _NT_URL + urllib_unquote(href)
-                elif 'pdf' in label:
-                    self.pdf_link = _NT_URL + urllib_unquote(href)
-                elif 'references' in label:
-                    self.ref_references = _NT_URL + urllib_unquote(href)
+                    self.pubmed = href
+                elif 'cas' in label:
+                    self.cas = href
+                elif 'isi' in label:
+                    self.isi = href
+                elif 'ads' in label:
+                    self.ads = href
 
 
     def __repr__(self):
         return u'' + \
-        '                    ref_id: %s\n' % self.ref_id + \
-        '                     title: %s\n' % td(self.title) + \
-        '                   authors: %s\n' % self.authors + \
-        '               publication: %s\n' % self.publication + \
-        '                    volume: %s\n' % self.volume + \
-        '                      date: %s\n' % self.date + \
-        '                     pages: %s\n' % self.pages + \
-        '               pubmed_link: %s\n' % self.pubmed + \
-        '                 pubmed_id: %s\n' % self.pubmed_id + \
-        '             crossref_link: %s\n' % self.crossref + \
-        '                  CAS_link: %s\n' % self.cas + \
-        '             abstract_link: %s\n' % self.abstract + \
-        '           references_link: %s\n' % self.ref_references + \
-        '                  pdf_link: %s\n' % self.pdf_link + \
-        '                       doi: %s\n' % self.doi + \
-        'web of science times cited: %s\n' % self.citetimes
+        'ref_id: %s\n' % self.ref_id + \
+        'title: %s\n' % td(self.title) + \
+        'authors: %s\n' % self.authors + \
+        'publication: %s\n' % self.publication + \
+        'volume: %s\n' % self.volume + \
+        'date: %s\n' % self.date + \
+        'pages: %s\n' % self.pages + \
+        'pubmed_link: %s\n' % self.pubmed + \
+        'crossref_link: %s\n' % self.crossref + \
+        'CAS_link: %s\n' % self.cas + \
+        'ISI_link: %s\n' % self.isi + \
+        'ADS_link: %s\n' % self.ads + \
+        'doi: %s\n' % self.doi
 
 
 def get_references(input, verbose=False):
     """
-    This function gets references for a Wiley URL that is of the
-    form:
+    This function gets references for a Nature URL
 
-        http://www.onlinelibrary.wiley.com/doi/####################/references
-
-        (ending could also be /abstract or /citedby)
-
-        e.g. http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/references
+        e.g. http://www.nature.com/nature/journal/v482/n7385/full/nature10886.html
 
     """
-
-    # TODO: Make this a class reference parser
-
-    # If you view the references, they should be wrapped by a <ul> tag
-    # with the attribute class="article-references"
-    REFERENCE_SECTION_TAG =  ('div', {'class' : 'bibliography'})
-
-    # TODO: check what this guest tag actually looks like
-    # When we don't have proper access rights, this is present in the html
-    GUEST_TAG = ('li', {'id' : 'menuGuest'})
-
-    # Entries are "li" tags with ids of the form:
-    #   b1, b2, b3, etc.
-    # Hopefully this doesn't grab other random list items on the page
-    REFERENCE_TAG = ('li', {'id' : re.compile('b*')})
 
     # Step 1 - Make the request
     #--------------------------------------------------------------------------
@@ -412,22 +380,29 @@ def get_references(input, verbose=False):
     # They are however missing a lot of the linking information
     # e.g. link to the article, pdf download, etc
 
-    reference_section = soup.find(*REFERENCE_SECTION_TAG)
+    # Ordered list of references will be within a div with the id 'references'
+    reference_section = soup.find('div', {'id' : 'references'})
+    ref_list = reference_section.find('ol', {'class' : 'references'})
 
-    if reference_section is None:
+    if ref_list is None:
         # Then we might be a guest. In other words, we might not have sufficient
         # privileges to access the data we want. Generally this is protected via
         # IP mask. When I'm working from home I need to VPN into work so
         # that I can access the data :/
         print("reference_section is None")
-        temp = soup.find(*GUEST_TAG)
+
+        # TODO: check what this guest tag actually looks like
+        # When we don't have proper access rights, this is present in the html
+        guest_tag = ('li', {'id' : 'menuGuest'})
+
+        temp = soup.find(*guest_tag)
         if temp is None:
             #We might have no references ... (Doubtful)
             raise errors.ParseException("References were not found ..., code error likely")
         else:
             raise errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
-    ref_tags = reference_section.find_all(*REFERENCE_TAG)
+    ref_tags = ref_list.find_all('li')
 
     n_refs = len(ref_tags)
 

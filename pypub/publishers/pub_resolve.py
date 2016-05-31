@@ -1,5 +1,6 @@
 import csv
 
+
 def resolve_link(link):
     """
     Gets the paper and references information from a link (URL)

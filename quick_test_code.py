@@ -147,6 +147,8 @@ nt_link = 'http://www.nature.com/nature/journal/v482/n7385/full/nature10886.html
 entry = nt.get_entry_info(nt_link, verbose=True)
 print(entry)
 
+refs = nt.get_references(nt_link)
+print(refs[0])
 
 """
 from pypub.scrapers import jneuroscience as jn

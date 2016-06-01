@@ -27,49 +27,31 @@ class Publisher:
 
 
 class Wiley(Publisher):
-    def extract_pdf(self, file_url):
+    def get_pdf_content(self, file_url):
 
         # Change file URL ending from /epdf to /pdf
         if file_url.find('/epdf') != -1:
             file_url = file_url.replace('/epdf', '/pdf')
 
         resp = requests.get(file_url)
+        soup_tag = ('iframe', {'id' : 'pdfDocument'})
+        link_loc = 'src'
 
-        if hasattr(resp, 'headers'):
-            if 'text/html' in resp.headers['Content-Type']:
-                soup = BeautifulSoup(resp.text)
-                pdf_link = soup.find('iframe', {'id' : 'pdfDocument'})['src']
-                resp2 = requests.get(pdf_link)
-                return resp2
-            elif 'application/pdf' in resp.headers['Content-Type']:
-                return resp
-            else:
-                raise LookupError('Response not HTML or a PDF.')
-        else:
-            raise LookupError('Could not get headers from web response.')
+        return _extract_content(resp, soup_tag, link_loc)
 
 
 class ScienceDirect(Publisher):
-    def extract_pdf(self, file_url):
+    def get_pdf_content(self, file_url):
 
         resp = requests.get(file_url)
+        soup_tag = ('a', {'id' : 'pdfLink'})
+        link_loc = 'src'
 
-        if hasattr(resp, 'headers'):
-            if 'text/html' in resp.headers['Content-Type']:
-                soup = BeautifulSoup(resp.text)
-                pdf_link = soup.find('a', {'id' : 'pdfLink'})['href']
-                resp2 = requests.get(pdf_link)
-                return resp2
-            elif 'application/pdf' in resp.headers['Content-Type']:
-                return resp
-            else:
-                raise LookupError('Response not HTML or a PDF.')
-        else:
-            raise LookupError('Could not get headers from web response.')
+        return _extract_content(resp, soup_tag, link_loc)
 
 
 class Springer(Publisher):
-    def extract_pdf(self, file_url):
+    def get_pdf_content(self, file_url):
 
         resp = requests.get(file_url)
 
@@ -88,5 +70,20 @@ class Springer(Publisher):
 
 
 class Nature(Publisher):
-    def extract_pdf(self, file_url):
+    def get_pdf_content(self, file_url):
         raise LookupError('Not yet implemented')
+
+
+def _extract_content(resp, soup_tag, link_location):
+    if hasattr(resp, 'headers'):
+        if 'text/html' in resp.headers['Content-Type']:
+            soup = BeautifulSoup(resp.text)
+            pdf_link = soup.find(soup_tag)[link_location]
+            resp2 = requests.get(pdf_link)
+            return resp2
+        elif 'application/pdf' in resp.headers['Content-Type']:
+            return resp.content
+        else:
+            raise LookupError('Response not HTML or a PDF.')
+    else:
+        raise LookupError('Could not get headers from web response.')

@@ -742,6 +742,7 @@ def get_pdf_link(input, verbose=False, soup=None):
     pdf_link = navbar.find('a', {'id' : 'pdfLink'})['href']
     return pdf_link
 
+
 def get_all_info(input, verbose=False):
     pass
 

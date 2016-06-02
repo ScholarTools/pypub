@@ -14,7 +14,7 @@ def resolve_link(link):
 
     Returns
     -------
-    paper_info : dict
+    pub_dict : dict
         See resolve_citation for description.
 
     """

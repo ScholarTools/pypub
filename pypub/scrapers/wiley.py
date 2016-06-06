@@ -32,6 +32,7 @@ a Wiley URL.
 """
 
 import sys
+
 import os
 
 if sys.version_info.major == 2:
@@ -47,7 +48,7 @@ from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 
-from .. import errors
+import pypub_errors
 
 import re
 import requests
@@ -142,7 +143,7 @@ class WileyEntry(object):
         # Get entry content information
         mainContent = soup.find('div', {'id' : 'mainContent'})
         if mainContent is None:
-            raise errors.ParseException('Unable to find main content of page')
+            raise pypub_errors.ParseException('Unable to find main content of page')
 
 
         # Metadata:
@@ -422,9 +423,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise errors.ParseException("References were not found ..., code error likely")
+            raise pypub_errors.ParseException("References were not found ..., code error likely")
         else:
-            raise errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise pypub_errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG)
 

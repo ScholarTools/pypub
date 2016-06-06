@@ -32,14 +32,13 @@ a Nature URL.
 """
 
 import sys
+
 import os
 
 if sys.version_info.major == 2:
-    from urllib import unquote as urllib_unquote
-    from urllib import quote as urllib_quote
+    pass
 else:
-    from urllib.parse import unquote as urllib_unquote
-    from urllib.parse import quote as urllib_quote
+    pass
 # -----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,7 +46,7 @@ from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 
-from .. import errors
+import pypub_errors
 
 import re
 import requests
@@ -159,7 +158,7 @@ class NatureEntry(object):
         content = soup.find('div', {'id' : 'content'})
         mainContent = content.find('header')
         if mainContent is None:
-            raise errors.ParseException('Unable to find main content of page')
+            raise pypub_errors.ParseException('Unable to find main content of page')
 
 
         # Metadata:
@@ -398,11 +397,11 @@ def get_references(input, verbose=False):
         temp = soup.find(*guest_tag)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise errors.ParseException("References were not found ..., code error likely")
+            raise pypub_errors.ParseException("References were not found ..., code error likely")
         else:
-            raise errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise pypub_errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
-    ref_tags = ref_list.find_all('li')
+    ref_tags = ref_list.find_all('li', recursive=False)
 
     n_refs = len(ref_tags)
 
@@ -447,26 +446,17 @@ def get_pdf_link(input):
     pdf_link : str
         URL directly to the article pdf
     """
-    '''
+
     soup = make_soup(input)
 
     # Get entry content information
-    toolbar = soup.find('div', {'id' : 'promosAndTools'})
+    toolbar = soup.find('div', {'id' : 'download-links'})
     if toolbar is None:
-        raise errors.ParseException('Unable to find toolbar section of page')
+        raise pypub_errors.ParseException('Unable to find download section of page')
 
-    links = toolbar.find('li', {'class' : 'readcubePdf'})
-    href = links.find('a', {'class' : 'readcubePdfLink'})['href']
+    link = toolbar.find('li', {'class' : 'articlepdf'})
+    href = link.find('a')['href']
     pdf_link = _NT_URL + href
-    '''
-    if is_url(input):
-        doi = extract_doi(input)
-    elif is_doi(input):
-        doi = input
-    else:
-        raise ValueError('Input not recognized as a valid DOI or Wiley URL')
-
-    pdf_link = _NT_URL + '/doi/' + doi + '/pdf'
 
     return pdf_link
 

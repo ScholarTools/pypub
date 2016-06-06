@@ -40,6 +40,7 @@ a Springer Link URL.
 """
 
 import sys
+
 import os
 
 #TODO: Move this into a compatability module
@@ -47,20 +48,17 @@ import os
 PY2 = sys.version_info.major == 2
 
 if PY2:
-    from urllib import unquote as urllib_unquote
-    from urllib import quote as urllib_quote
+    pass
 else:
-    from urllib.parse import unquote as urllib_unquote
-    from urllib.parse import quote as urllib_quote
+    pass
 #-----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
 
-from .. import errors
+import pypub_errors
 
-import re
 #-------------------
 import requests
 from bs4 import BeautifulSoup
@@ -141,7 +139,7 @@ class SpringerEntry(object):
         # Get entry content information
         mainContent = soup.find('div', {'class' : 'ArticleHeader'})
         if mainContent is None:
-            raise errors.ParseException('Unable to find main content of page')
+            raise pypub_errors.ParseException('Unable to find main content of page')
 
 
         # Metadata:
@@ -165,7 +163,7 @@ class SpringerEntry(object):
         # SpringerLink keeps keywords below the abstract, separate from header info
         keybox = soup.find('div', {'class' : 'KeywordGroup'})
         if keybox is None:
-            raise errors.ParseException('Unable to find keywords')
+            raise pypub_errors.ParseException('Unable to find keywords')
         wordlist = keybox.find_all('span', {'class' : 'Keyword'})
         self.keywords = [w.text for w in wordlist]
 
@@ -395,9 +393,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise errors.ParseException("References were not found ..., code error likely")
+            raise pypub_errors.ParseException("References were not found ..., code error likely")
         else:
-            raise errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise pypub_errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG)
 

@@ -29,6 +29,7 @@ a Sciencedirect URL.
 """
 
 import sys
+
 import os
 
 # TODO: Move this into a compatability module
@@ -37,20 +38,17 @@ PY2 = sys.version_info.major == 2
 
 if PY2:
     from urllib import unquote as urllib_unquote
-    from urllib import quote as urllib_quote
 else:
     from urllib.parse import unquote as urllib_unquote
-    from urllib.parse import quote as urllib_quote
 # -----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
 
-from .. import errors
+import pypub_errors
 
 import pandas as pd
-import urllib
 import re
 # ------------------
 import requests
@@ -181,7 +179,7 @@ class ScienceDirectEntry(object):
         # This div and id are mobile site specific
         article_abstract = soup.find('div', id='article-abstract')
         if article_abstract is None:
-            raise errors.ParseException('Unable to find abstract section of page')
+            raise pypub_errors.ParseException('Unable to find abstract section of page')
 
         # Things to get:
         # --------------
@@ -563,9 +561,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG_TUPLE)
         if temp is None:
             # We might have no references ... (Doubtful)
-            raise errors.ParseException("References were not found ..., code error likely")
+            raise pypub_errors.ParseException("References were not found ..., code error likely")
         else:
-            raise errors.InsufficientCredentialsException(
+            raise pypub_errors.InsufficientCredentialsException(
                 "Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG_TUPLE)

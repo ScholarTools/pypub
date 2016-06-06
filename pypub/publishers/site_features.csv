@@ -4,3 +4,4 @@ wy,http://onlinelibrary.wiley.com,n,,tabbed,n,y,y,n,/doi/,/abstract,/references,
 sp,http://link.springer.com,n,,one_page,n,n,y,n,/article/,,,"'div', {'class' : 'ArticleHeader'}","'ol', {'class' : 'BibliographyWrapper'}",springer,Springer
 ,http://ac.els-cdn.com,,,,,,,,,,,,,,ScienceDirect
 ,http://download.springer.com,,,,,,,,,,,,,,Springer
+nt,http://nature.com,n,,one_page,n,,,,,,,,,nature,Nature

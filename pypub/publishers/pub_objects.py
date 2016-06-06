@@ -71,7 +71,12 @@ class Springer(Publisher):
 
 class Nature(Publisher):
     def get_pdf_content(self, file_url):
-        raise LookupError('Not yet implemented')
+        """
+        This one is nice because it doesn't return HTML.
+        """
+        resp = requests.get(file_url)
+        return resp.content
+
 
 
 def _extract_content(resp, soup_tag, link_location):

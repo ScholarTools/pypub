@@ -142,13 +142,20 @@ print(json.dumps(refs[0]))
 
 from pypub.scrapers import nature as nt
 
-nt_link = 'http://www.nature.com/nature/journal/v482/n7385/full/nature10886.html'
+nt_link = 'http://www.nature.com/nrg/journal/v15/n5/full/nrg3686.html'
 
-entry = nt.get_entry_info(nt_link, verbose=True)
-print(entry)
+
+#entry = nt.get_entry_info(nt_link, verbose=True)
+#print(entry)
 
 refs = nt.get_references(nt_link)
 print(refs[0])
+print(len(refs))
+
+#nature_pdf_link = nt.get_pdf_link(nt_link)
+#print(nature_pdf_link)
+
+
 
 """
 from pypub.scrapers import jneuroscience as jn

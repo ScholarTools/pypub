@@ -85,7 +85,7 @@ def _extract_content(resp, soup_tag, link_location):
             soup = BeautifulSoup(resp.text)
             pdf_link = soup.find(soup_tag)[link_location]
             resp2 = requests.get(pdf_link)
-            return resp2
+            return resp2.content
         elif 'application/pdf' in resp.headers['Content-Type']:
             return resp.content
         else:

@@ -85,7 +85,7 @@ class ScienceDirectAuthor(object):
         #   class="affiliation" id="aff1"        
 
         # 1st bit of text is the name, then we have
-        self.raw = li_tag.contents[0]
+        self.name = li_tag.contents[0]
         # KeyError would mean that there are no superscripted affiliations.
         # In this case, just set self._data_refs to None and keep moving.
         try:
@@ -139,7 +139,7 @@ class ScienceDirectAuthor(object):
 
     def __repr__(self):
         return u'' + \
-               'name: %s, ' % self.raw + \
+               'name: %s, ' % self.name + \
                'affiliations: %s\n' % self.affiliations + \
                'aff type: %s\n' % str(type(self.affiliations)) + \
                'email: %s\n' % self.email
@@ -197,6 +197,15 @@ class ScienceDirectEntry(object):
         self.pages = self.first_page + "-" + self.last_page
         # special_issue #p,publication-special-issue
 
+        # Abstract
+        # --------
+        self.abstract = None
+        abstract_sections = article_abstract.find_all('section', {'class' : 'article-abstract'})
+        for a in abstract_sections:
+            paragraph = a.find('p', {'class' : 'para'})
+            if paragraph is not None:
+                self.abstract = paragraph.text
+                break
 
         # DOI retrieval
         # -------------
@@ -235,14 +244,15 @@ class ScienceDirectEntry(object):
 
     def __repr__(self):
         return u'' + \
-               '      title: %s\n' % td(self.title) + \
-               '    authors: %s\n' % self.authors + \
-               '   keywords: %s\n' % self.keywords + \
-               'publication: %s\n' % self.publication + \
-               '       date: %s\n' % self.date + \
-               '     volume: %s\n' % self.volume + \
-               '      pages: %s\n' % self.pages + \
-               '        doi: %s\n' % self.doi
+            '      title: %s\n' % td(self.title) + \
+            '    authors: %s\n' % self.authors + \
+            '   keywords: %s\n' % self.keywords + \
+            'publication: %s\n' % self.publication + \
+            '       date: %s\n' % self.date + \
+            '     volume: %s\n' % self.volume + \
+            '      pages: %s\n' % self.pages + \
+            '        doi: %s\n' % self.doi + \
+            '   abstract %s \n' % self.abstract
 
     @classmethod
     def from_pii(pii):

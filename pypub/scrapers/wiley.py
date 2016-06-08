@@ -48,7 +48,7 @@ from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 
-import pypub_errors
+from pypub_errors import *
 
 import re
 import requests
@@ -143,7 +143,7 @@ class WileyEntry(object):
         # Get entry content information
         mainContent = soup.find('div', {'id' : 'mainContent'})
         if mainContent is None:
-            raise pypub_errors.ParseException('Unable to find main content of page')
+            raise ParseException('Unable to find main content of page')
 
 
         # Metadata:
@@ -158,19 +158,34 @@ class WileyEntry(object):
         self.year = self.date[-4:]
 
         vol = findValue(mainContent, 'span', 'volumeNumber', 'id')
+        vol = vol.lower().replace('volume ', '')
         issue = findValue(mainContent, 'span', 'issueNumber', 'id')
-        self.volume = vol + ', ' + issue
+        issue = issue.lower().replace('issue ', '')
+        self.volume = vol
+        self.issue = issue
 
         self.pages = findValue(mainContent, 'span', 'issuePages', 'id')
         self.pages = self.pages[6:] # to get rid of 'pages: ' at the beginning
 
+
+        # Keywords and Abstract:
+        #----------
         # TODO: Fix this keyword stuff
-        keybox = soup.find('ul', {'class' : 'keywordList'})
-        #if keybox is None:
-        #    raise errors.ParseException('Unable to find keywords')
-        #wordlist = keybox.find_all('li')
-        #self.keywords = [w.text for w in wordlist]
-        self.keywords = None
+        productContent = soup.find('div', {'id' : 'productContent'})
+        keybox = productContent.find('div', {'class' : 'keywordLists'})
+        #keybox = soup.find('ul', {'class' : 'keywordList'})
+        if keybox is None:
+            #raise ParseException('Unable to find keywords')
+            print('Unable to find keywords')
+            self.keywords = None
+        else:
+            wordlist = keybox.find_all('li')
+            self.keywords = [w.text for w in wordlist]
+        #self.keywords = None
+
+        abstract_section = productContent.find('div', {'id' : 'abstract'})
+        self.abstract = abstract_section.text
+
 
         # DOI Retrieval:
         #---------------
@@ -214,8 +229,10 @@ class WileyEntry(object):
         'publication: %s\n' % self.publication + \
         '       date: %s\n' % self.date + \
         '     volume: %s\n' % self.volume + \
+        '      issue: %s\n' % self.issue + \
         '      pages: %s\n' % self.pages + \
-        '        doi: %s\n' % self.doi
+        '        doi: %s\n' % self.doi + \
+        '   abstract: %s\n' % self.abstract
 
 
     @classmethod
@@ -423,9 +440,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise pypub_errors.ParseException("References were not found ..., code error likely")
+            raise ParseException("References were not found ..., code error likely")
         else:
-            raise pypub_errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG)
 

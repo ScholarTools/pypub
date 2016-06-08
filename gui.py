@@ -23,29 +23,13 @@ class Window(QWidget):
     in a large box below the buttons, or the user can open up the notes editor,
     which appears in a smaller, new window. The notes can be edited and saved.
 
-    --- References List Features ---
-     * Click once on a reference to expand it downward and view more information,
-        including the full title, the journal it appears in, and its DOI.
-     * Click twice on a reference to open up the notes editor for that reference
-        (though the reference must first be in the user's library). If the reference
-        is not already in the user's library, a pop-up window asks if they would
-        like to add it.
-     * Reference entry is highlighted in green if it exists in the user's library,
-        red if the reference is not in the library, or grey if there is no DOI listed.
-     * Right-click menu options:
-        - Add to library
-           The reference information and file is retrieved using a web scraper and
-            added to the user's Mendeley library.
-           Requires that the user has the appropriate permissions to access the file
-            through the publisher, and that there is a web scraper in place for that
-            specific publisher.
-        - Look up references
-           The DOI of the reference is searched for, and its references listed.
-           Requires that the reference has a DOI.
-        - Move to trash
-           Moves the document and file from the user's Mendeley library to the trash.
-           Requires that the document be in the user's library.
-
+    --- Features ---
+    * Indicator button next to the text field turns green if the entered DOI
+       is found in the user's library. This is done automatically.
+    * Get References button creates a list of the references for the paper
+       entered in the text box. See "ReferenceLabel" for more information.
+    * Open Notes button opens a new window with the Mendeley notes about
+       the paper. These can be edited and saved.
 
     TODOs:
      - Implement URL input capability, not just DOI
@@ -57,7 +41,7 @@ class Window(QWidget):
     def __init__(self):
         super().__init__()
         #loading = LoadingPopUp()
-        self.library = self.instantiate_library()
+        self.library = self._instantiate_library()
         self.api = API()
         #loading.close_window()
         self.initUI()
@@ -74,6 +58,7 @@ class Window(QWidget):
         self.url_check = QRadioButton('URL')
         self.get_references = QPushButton('Get References')
         self.open_notes = QPushButton('Open Notes')
+        self.add_to_lib = QPushButton('Add to Library')
         self.stacked_responses = QStackedWidget()
         self.ref_area = QScrollArea()
 
@@ -82,6 +67,7 @@ class Window(QWidget):
         self.textEntry.returnPressed.connect(self.get_refs)
         self.get_references.clicked.connect(self.get_refs)
         self.open_notes.clicked.connect(self.show_main_notes_box)
+        self.add_to_lib.clicked.connect(self.add_to_library_from_main)
 
         # Format indicator button
         #self.indicator.setFlat(True)
@@ -89,6 +75,11 @@ class Window(QWidget):
         self.indicator.setAutoFillBackground(True)
         self.indicator.setFixedSize(20,20)
         self.indicator.setToolTip("Green if DOI found in library")
+
+        # Set bool to keep track of if a DOI is in the library
+        self.is_in_lib = False
+
+        # TODO: Make this ToolTip color work
         self.setStyleSheet("""QToolTip {
                                     background-color: white;
                                     color: black;
@@ -120,6 +111,7 @@ class Window(QWidget):
         checkboxes.addWidget(self.url_check)
         checkboxes.addWidget(self.get_references)
         checkboxes.addWidget(self.open_notes)
+        checkboxes.addWidget(self.add_to_lib)
         checkboxes.addStretch(1)
 
         # Create a horizontal box for indicator and textEntry
@@ -140,61 +132,36 @@ class Window(QWidget):
         # Set layout to be the vertical box.
         self.setLayout(self.vbox)
 
+        # Sizing, centering, and showing
         self.resize(500,600)
         _center(self)
         self.setWindowTitle('ScholarTools')
         self.show()
 
-    # ++++++++++++++++++++++++++++++++++++++++++++
-    # ============================================ All Functions
-    # ++++++++++++++++++++++++++++++++++++++++++++
-    def instantiate_library(self):
-        return client_library.UserLibrary()
+    # +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+= Start of Functions
 
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    # ============================================ Main Window Button Functions
+    # ++++++++++++++++++++++++++++++++++++++++++++
     def update_indicator(self):
-        in_library = self.check_lib()
+        in_library = self._check_lib()
         if in_library:
             self.data.doc_response_json = self.library.get_document(self._get_doi(), return_json=True)
+            print(self.data.doc_response_json.keys())
             self.indicator.setStyleSheet("background-color: rgba(0, 255, 0, 0.25);")
+            self.is_in_lib = True
+
         else:
             self.data.doc_response_json = None
-            self.indicator.setStyleSheet("background-color: rgba(0, 0, 0, 0);")
-
-    def check_lib(self):
-        entered_doi = self._get_doi()
-        self.populate_response_widget()
-
-        if entered_doi == '':
-            return False
-        in_library = self.library.check_for_document(entered_doi)
-        return in_library
-
-    def _get_doi(self):
-        """
-        Right now, the URL option is not supported. To do this I'll
-        need to implement link_to_doi and resolve_link in reference_resolver.
-        """
-        text = self.textEntry.text()
-
-        if self.doi_check.isChecked():
-            return text
-        else:
-            return text
-
-    def populate_response_widget(self):
-        if self.stacked_responses.count() < 3:
-            self.stacked_responses.addWidget(QLabel('Please enter text above.'))
-            self.stacked_responses.addWidget(QLabel('Found in library!'))
-            self.stacked_responses.addWidget(QLabel('Not found in library.'))
-            self.stacked_responses.hide()
+            self.indicator.setStyleSheet("background-color: rgba(255, 0, 0, 0.25);")
+            self.is_in_lib = False
 
     def get_refs(self):
-        # Hide message from check_lib
         self.stacked_responses.hide()
 
         # Get DOI from text field and handle blank entry
         entered_doi = self._get_doi()
-        self.populate_response_widget()
+        self._populate_response_widget()
 
         if entered_doi == '':
             self.stacked_responses.setCurrentIndex(0)
@@ -205,7 +172,7 @@ class Window(QWidget):
         try:
             paper_info = rr.resolve_doi(entered_doi)
             refs = paper_info.references
-            self.populate_data(paper_info)
+            self._populate_data(paper_info)
         except UnsupportedPublisherError:
             QMessageBox.warning(self, 'Warning', 'Unsupported Publisher')
             return
@@ -221,6 +188,30 @@ class Window(QWidget):
 
         self.ref_area.show()
 
+    #
+    # For "Open Notes", see "Notes Box Display Functions" section below.
+    #
+
+    def add_to_library_from_main(self):
+        if self.is_in_lib:
+            QMessageBox.information(self, 'Information', 'Paper is already in library.')
+            return
+        doi = self._get_doi()
+        try:
+            self.library.add_to_library(doi)
+        except UnsupportedPublisherError:
+            QMessageBox.warning(self, 'Warning', 'Publisher is not yet supported.\n'
+                                                 'Document not added.')
+            return
+        except CallFailedException as call:
+            QMessageBox.warning(self, 'Warning', str(call))
+        self._update_document_status(doi, adding=True)
+        self.update_indicator()
+
+
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    # ============================================ Reference Label Functions
+    # ++++++++++++++++++++++++++++++++++++++++++++
     def ref_to_label(self, ref):
         # Extract main display info
         ref_id = ref.get('ref_id')
@@ -302,7 +293,109 @@ class Window(QWidget):
         else:
             clicked_label.setText(clicked_label.small_text)
 
-    def populate_data(self, info):
+
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    # ============================================ Reference Label Right-Click Functions
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    def add_to_library_from_label(self, label, doi):
+        if doi is None:
+            QMessageBox.warning(self, 'Warning', 'No DOI found for this reference')
+            return
+        try:
+            self.library.add_to_library(doi)
+        except UnsupportedPublisherError:
+            QMessageBox.warning(self, 'Warning', 'Publisher is not yet supported.\n'
+                                                 'Document not added.')
+            return
+        self._update_document_status(doi, label=label, adding=True)
+
+    def lookup_ref(self, doi):
+        if doi is None:
+            QMessageBox.warning(self, 'Warning', 'No DOI found for this reference')
+            return
+        self.textEntry.setText(doi)
+        self.get_refs()
+
+    def move_doc_to_trash(self, doi=None, label=None):
+        if doi is None:
+            doi = label.doi
+        doc_json = self.library.get_document(doi, return_json=True)
+        if doc_json is None:
+            QMessageBox.information(self, 'Information', 'Document is not in your library.')
+            return
+        doc_id = doc_json.get('id')
+        self.api.documents.move_to_trash(doc_id)
+        self._update_document_status(doi, label=label)
+
+
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    # ============================================ Notes Box Display Functions
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    def show_main_notes_box(self):
+        if not self.is_in_lib:
+            QMessageBox.information(self, 'Information', 'Document not found in library.')
+            return
+        doc_json = self.data.doc_response_json
+        if doc_json is None:
+            pass
+        notes = doc_json.get('notes')
+        #self.nw = NotesWindow(parent=self, notes=notes, doc_json=doc_json)
+        #self.nw.show()
+        self.tnw = TabbedNotesWindow(parent=self, notes=notes, doc_json=doc_json)
+        self.tnw.show()
+
+    def show_ref_notes_box(self):
+        label = self.sender().parent
+        try:
+            doc_response_json = self.library.get_document(label.doi, return_json=True)
+        except DOINotFoundError:
+            reply = QMessageBox.question(self,'Message', 'Document not found in library.\nWould you like to add it?',
+                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.add_to_library_from_label(label, label.doi, self.library)
+                return
+            else:
+                return
+        notes = doc_response_json.get('notes')
+        self.nw = NotesWindow(parent=self, notes=notes, doc_json=doc_response_json)
+        self.nw.show()
+
+
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    # ============================================ Internal Functions
+    # ++++++++++++++++++++++++++++++++++++++++++++
+    def _instantiate_library(self):
+        return client_library.UserLibrary()
+
+    def _get_doi(self):
+        """
+        Right now, the URL option is not supported. To do this I'll
+        need to implement link_to_doi and resolve_link in reference_resolver.
+        """
+        text = self.textEntry.text()
+
+        if self.doi_check.isChecked():
+            return text
+        else:
+            return text
+
+    def _check_lib(self):
+        entered_doi = self._get_doi()
+        self._populate_response_widget()
+
+        if entered_doi == '':
+            return False
+        in_library = self.library.check_for_document(entered_doi)
+        return in_library
+
+    def _populate_response_widget(self):
+        if self.stacked_responses.count() < 3:
+            self.stacked_responses.addWidget(QLabel('Please enter text above.'))
+            self.stacked_responses.addWidget(QLabel('Found in library!'))
+            self.stacked_responses.addWidget(QLabel('Not found in library.'))
+            self.stacked_responses.hide()
+
+    def _populate_data(self, info):
         self.data.entry = info.entry
         self.data.references = info.references
         self.data.doi = info.doi
@@ -313,73 +406,43 @@ class Window(QWidget):
         self.data.small_ref_labels = []
         self.data.expanded_ref_labels = []
 
-    # ++++++++++++++++++++++++++++++++++++++++++++
-    # ============================================ Reference Label Right-Click Functions
-    # ++++++++++++++++++++++++++++++++++++++++++++
-    def add_to_library(self, label, doi):
-        if doi is None:
-            QMessageBox.warning(self, 'Warning', 'No DOI found for this reference')
-            return
-
-        try:
-            self.library.add_to_library(doi)
-        except UnsupportedPublisherError:
-            QMessageBox.warning(self, 'Warning', 'Publisher is not yet supported.\n'
-                                                 'Document not added.')
-            return
-        self._update_document_status(doi, label, adding=True)
-
-    def lookup_ref(self, doi):
-        if doi is None:
-            QMessageBox.warning(self, 'Warning', 'No DOI found for this reference')
-            return
-        self.textEntry.setText(doi)
-        self.get_refs()
-
-    def move_doc_to_trash(self, label):
-        doi = label.doi
-        doc_json = self.library.get_document(doi, return_json=True)
-        if doc_json is None:
-            QMessageBox.information(self, 'Information', 'Document is not in your library.')
-            return
-        doc_id = doc_json.get('id')
-        self.api.documents.move_to_trash(doc_id)
-        self._update_document_status(doi, label)
-
-    def _update_document_status(self, doi, label, adding=False):
+    def _update_document_status(self, doi, label=None, adding=False):
         self.library.sync()
         exists = self.library.check_for_document(doi)
         if exists:
-            label.setStyleSheet("background-color: rgba(0,255,0,0.25);")
-        else:
-            label.setStyleSheet("background-color: rgba(255,0,0,0.25);")
-            if adding:
-                QMessageBox.warning(self, 'Warning', 'An error occurred during sync.\n'
-                                    'Document may not have been added.')
+            doc_json = self.library.get_document(doi, return_json=True)
+            has_file = doc_json.get('file_attached')
+            if has_file is not None:
+                if not has_file:
+                    msgBox = QMessageBox()
+                    msgBox.setText('Document was added without a file attached.\n'
+                                   'If this was in error, you may choose to delete\n'
+                                   'the file and add again. Otherwise, ignore this message.')
+                    delete_button = QPushButton('Delete')
+                    msgBox.addButton(delete_button, QMessageBox.RejectRole)
+                    delete_button.clicked.connect(lambda: self.move_doc_to_trash(doi=doi))
+                    msgBox.addButton(QPushButton('Ignore'), QMessageBox.AcceptRole)
 
-    # ++++++++++++++++++++++++++++++++++++++++++++
-    # ============================================ Notes Box Display Functions
-    # ++++++++++++++++++++++++++++++++++++++++++++
-    def show_ref_notes_box(self):
-        label = self.sender().parent
-        try:
-            doc_response_json = self.library.get_document(label.doi, return_json=True)
-        except DOINotFoundError:
-            reply = QMessageBox.question(self,'Message', 'Document not found in library.\nWould you like to add it?',
-                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                self.add_to_library(label, label.doi, self.library)
-                return
+                    reply = msgBox.exec_()
+
+                    print(reply)
+
+                    # If the user chose to delete, exit this function.
+                    if reply != QMessageBox.Accepted:
+                        return
+
+            if label is not None:
+                label.setStyleSheet("background-color: rgba(0,255,0,0.25);")
             else:
-                return
-        notes = doc_response_json.get('notes')
-        self.nw = NotesWindow(parent=self, notes=notes, doc_json=doc_response_json)
-        self.nw.show()
-
-    def show_main_notes_box(self):
-        notes = self.data.doc_response_json.get('notes')
-        self.nw = NotesWindow(parent=self, notes=notes, doc_json=self.data.doc_response_json)
-        self.nw.show()
+                self.is_in_lib = True
+        else:
+            if adding:
+                    QMessageBox.warning(self, 'Warning', 'An error occurred during sync.\n'
+                                        'Document may not have been added.')
+            if label is not None:
+                label.setStyleSheet("background-color: rgba(255,0,0,0.25);")
+            else:
+                self.update_indicator()
 
 
 class NotesWindow(QWidget):
@@ -410,21 +473,18 @@ class NotesWindow(QWidget):
         super(NotesWindow, self).__init__()
         self.parent = parent
         self.notes = notes
-        self.doi = doc_json.get('doi')
-        self.doc_id = doc_json.get('id')
+        self.doi = None
+        self.doc_id = None
+        self.caption = None
 
-        # TODO: Make an appropriate window title that says what article we're looking at the refs of.
-        # This might require fixing api.documents.get() so it returns more things
-        print(doc_json)
-        print(doc_json.keys())
-        print(doc_json.values())
-        doc_title = doc_json.get('title')
+        if doc_json is not None:
+            self.doi = doc_json.get('doi')
+            self.doc_id = doc_json.get('id')
+            self.make_captions(doc_json)
 
         self.initUI()
 
     def initUI(self):
-        self.saved = True
-
         # Make widgets
         self.notes_title = QLabel('Notes:')
         self.notes_box = QTextEdit()
@@ -441,6 +501,8 @@ class NotesWindow(QWidget):
         if self.notes is not None:
             self.notes_box.setText(self.notes)
 
+        self.saved = True
+
         hbox = QHBoxLayout()
         hbox.addWidget(self.save_button)
         hbox.addWidget(self.save_and_close_button)
@@ -456,7 +518,203 @@ class NotesWindow(QWidget):
 
         self.setLayout(vbox)
 
+        # Connect keyboard shortcut
+        self.close_shortcut = QShortcut(QKeySequence("Ctrl+W"), self)
+        self.close_shortcut.activated.connect(self.close)
+
+        self.setWindowTitle(self.caption)
         self.show()
+
+    def make_captions(self, doc_json):
+        # Make a useful window title
+        doc_title = doc_json.get('title')
+        doc_year = doc_json.get('year')
+        doc_authors = doc_json.get('authors')
+        if doc_authors is not None:
+            lastnames = [a.get('last_name') for a in doc_authors]
+            first_authors = lastnames[0:2]
+            first_authors = ', '.join(first_authors)
+            if len(lastnames) > 2:
+                first_authors = first_authors + ', et al.'
+
+        self.caption = ''
+
+        if doc_year is not None and doc_authors is not None:
+            self.caption = first_authors + ' (' + str(doc_year) + ')'
+        elif doc_title is not None:
+            self.caption = doc_title
+        else:
+            self.caption = self.doi
+
+
+    def save(self):
+        updated_notes = self.notes_box.getText()
+        notes_dict = {"notes" : updated_notes}
+        self.parent.api.documents.update(self.doc_id, notes_dict)
+        self.parent.library.sync()
+        self.saved = True
+
+    def save_and_close(self):
+        self.save()
+        self.close()
+
+    def updated_text(self):
+        self.saved = False
+
+    def closeEvent(self, QCloseEvent):
+        if self.saved:
+            QCloseEvent.accept()
+            return
+        else:
+            reply = QMessageBox.question(self, 'Message', 'Notes have not been saved.\n'
+                      'Are you sure you want to close notes?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            QCloseEvent.accept()
+        else:
+            QCloseEvent.ignore()
+
+
+class TabbedNotesWindow(QTabWidget):
+    """
+    This is the smaller window that appears displaying notes for a given reference.
+
+    --- Features ---
+    * Text box: Displays the current notes saved for a given document, and allows
+       for editing.
+    * Save button: Saves the changes made to the notes, and syncs with Mendeley.
+    * Save and Close button: Saves the changes made to the notes, syncs, with
+       Mendeley, and closes the notes window.
+    * Prompting before exit: If the user attempts to close the window after
+       making unsaved changes to the notes, a pop-up window appears asking
+       to confirm the action without saving. Provides an option to save.
+
+    TODOs:
+     - Fix the prompt before exit (currently appears when closing the main
+        window, even after the notes window is gone. Maybe this has to do
+        with having closed the window but not terminating the widget process?)
+     - Add informative window title to keep track of which paper is being
+        commented on.
+     - Add (automatic or voluntary) feature to input a little note saying something
+        like "edited with reference to [original file that references this one]"
+
+    """
+    def __init__(self, parent=None, notes=None, doc_json=None):
+        super(TabbedNotesWindow, self).__init__()
+        self.parent = parent
+        self.notes = notes
+        self.doc_json = doc_json
+        self.doi = None
+        self.doc_id = None
+        self.caption = None
+
+        if self.doc_json is not None:
+            self.doi = self.doc_json.get('doi')
+            self.doc_id = self.doc_json.get('id')
+            self.make_captions(self.doc_json)
+
+        self.setWindowTitle(self.caption)
+
+        # Connect keyboard shortcut
+        self.close_shortcut = QShortcut(QKeySequence("Ctrl+W"), self)
+        self.close_shortcut.activated.connect(self.close)
+
+        # Make tabs
+        self.notes_tab = QWidget()
+        self.abstract_tab = QWidget()
+        self.info_tab = QWidget()
+
+        self.addTab(self.notes_tab, 'Notes')
+        self.addTab(self.abstract_tab, 'Abstract')
+        self.addTab(self.info_tab, 'Info')
+        self.notesUI()
+        self.abstractUI()
+        self.infoUI()
+
+        self.show()
+
+        #self.initUI()
+
+    def notesUI(self):
+        # Make widgets
+        self.notes_title = QLabel('Notes:')
+        self.notes_box = QTextEdit()
+        self.save_button = QPushButton('Save')
+        self.save_and_close_button = QPushButton('Save and Close')
+        self.saved_indicator = QLabel('Saved!')
+        self.saved_indicator.hide()
+
+        '''
+        # Connect widgets
+        self.save_button.clicked.connect(self.save)
+        self.save_and_close_button.clicked.connect(self.save_and_close)
+        self.notes_box.textChanged.connect(self.updated_text)
+        '''
+
+        if self.notes is not None:
+            self.notes_box.setText(self.notes)
+
+        self.saved = True
+
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.save_button)
+        hbox.addWidget(self.save_and_close_button)
+
+        # Make layout and add widgets
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.notes_title)
+        vbox.addWidget(self.notes_box)
+        vbox.addWidget(self.saved_indicator)
+        vbox.addStretch(1)
+
+        vbox.addLayout(hbox)
+
+        self.notes_tab.setLayout(vbox)
+
+    def abstractUI(self):
+        abstract = self.doc_json.get('abstract')
+
+        abstract_label = QLabel(abstract)
+        abstract_label.setWordWrap(True)
+
+        abstract_layout = QVBoxLayout()
+        abstract_layout.addWidget(abstract_label)
+
+        self.abstract_tab.setLayout(abstract_layout)
+
+
+    def infoUI(self):
+        import json
+        json_string = json.dumps(self.doc_json)
+
+        info_label = QLabel(json_string)
+        info_label.setWordWrap(True)
+
+        info_layout = QVBoxLayout()
+        info_layout.addWidget(info_label)
+
+        self.info_tab.setLayout(info_layout)
+
+    def make_captions(self, doc_json):
+        # Make a useful window title
+        doc_title = doc_json.get('title')
+        doc_year = doc_json.get('year')
+        doc_authors = doc_json.get('authors')
+        if doc_authors is not None:
+            lastnames = [a.get('last_name') for a in doc_authors]
+            first_authors = lastnames[0:2]
+            first_authors = ', '.join(first_authors)
+            if len(lastnames) > 2:
+                first_authors = first_authors + ', et al.'
+
+        self.caption = ''
+
+        if doc_year is not None and doc_authors is not None:
+            self.caption = first_authors + ' (' + str(doc_year) + ')'
+        elif doc_title is not None:
+            self.caption = doc_title
+        else:
+            self.caption = self.doi
 
     def save(self):
         updated_notes = self.notes_box.getText()
@@ -489,6 +747,30 @@ class NotesWindow(QWidget):
 class ReferenceLabel(QLabel):
     """
     Custom extension of QLabel to allow several types of clicking functionality.
+
+    --- Features ---
+     * Click once on a reference to expand it downward and view more information,
+        including the full title, the journal it appears in, and its DOI.
+     * Click twice on a reference to open up the notes editor for that reference
+        (though the reference must first be in the user's library). If the reference
+        is not already in the user's library, a pop-up window asks if they would
+        like to add it.
+     * Reference entry is highlighted in green if it exists in the user's library,
+        red if the reference is not in the library, or grey if there is no DOI listed.
+     * Right-click menu options:
+        - Add to library
+           The reference information and file is retrieved using a web scraper and
+            added to the user's Mendeley library.
+           Requires that the user has the appropriate permissions to access the file
+            through the publisher, and that there is a web scraper in place for that
+            specific publisher.
+        - Look up references
+           The DOI of the reference is searched for, and its references listed.
+           Requires that the reference has a DOI.
+        - Move to trash
+           Moves the document and file from the user's Mendeley library to the trash.
+           Requires that the document be in the user's library.
+
     """
 
     def __init__(self, text, parent):
@@ -523,7 +805,7 @@ class ReferenceLabel(QLabel):
         elif action == ref_lookup:
             self.parent.lookup_ref(self.reference.get('doi'))
         elif action == move_to_trash:
-            self.parent.move_doc_to_trash(self)
+            self.parent.move_doc_to_trash(label=self)
 
 
 # This is meant to be a popup that appears when the GUI is launched
@@ -566,44 +848,6 @@ def _center(widget):
     cp = QDesktopWidget().availableGeometry().center()
     qr.moveCenter(cp)
     widget.move(qr.topLeft())
-
-'''
-def _clickable(widget):
-    class Filter(QObject):
-        clicked = pyqtSignal()
-        doubleclicked = pyqtSignal()
-
-        label = widget
-
-        def eventFilter(self, obj, event):
-            if obj == widget:
-                if event.type() == QEvent.MouseButtonPress:
-                    # Start timer to determine if the mouse is being held
-                    # down and the user is highlighting.
-                    widget.click_timer.timeout.connect(self.set_highlighting)
-                    widget.click_timer.start(250)
-                # If the user is clicking without highlighting, send
-                # the 'clicked' signal.
-                if event.type() == QEvent.MouseButtonRelease:
-                    widget.click_timer.stop()
-                    if not widget.highlighting:
-                        if obj.rect().contains(event.pos()):
-                            self.clicked.emit()
-                            # The developer can opt for .emit(obj) to get the object within the slot.
-                            return True
-                    widget.highlighting = False
-            return False
-
-        def set_highlighting(self):
-            widget.highlighting = True
-
-        def single_click(self):
-            self.clicked.emit()
-
-    filter = Filter(widget)
-    widget.installEventFilter(filter)
-    return filter.clicked
-'''
 
 
 class ClickFilter(QObject):

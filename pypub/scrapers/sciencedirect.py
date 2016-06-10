@@ -333,10 +333,13 @@ class ScienceDirectRef(object):
 
         # Reference Bibliography Section:
         # -------------------------------
+
         # Example str: <span class="r_volume">Volume 47</span>
         self.ref_id = ref_id + 1  # Input is 0 based
         self.title = findValue(ref_tags, 'li', 'reference-title', 'class')
-        self.authors = findValue(ref_tags, 'li', 'reference-author', 'class')
+        all_authors = ref_tags.find_all('span', {'class' : 'reference-author'})
+        self.authors = [x.text for x in all_authors]
+        #self.authors = findValue(ref_tags, 'li', 'reference-author', 'class')
         # NOTE: We can also get individual authors if we would like.
         #        
         #   Search would be on: 
@@ -377,7 +380,8 @@ class ScienceDirectRef(object):
 
         # Each section is contained a div tag with the class boxLink, although
         # some classes have more text in the class attribute, thus the *)
-        box_links = link_soup.find_all('div', {'class': re.compile('boxLink*')})
+        #box_links = link_soup.find_all('div', {'class': re.compile('boxLink*')})
+        box_links = link_soup.find_all('div', {'class' : 'boxLink'})
 
         self.scopus_link = None
         self.doi = None
@@ -398,16 +402,16 @@ class ScienceDirectRef(object):
                 # although the input should be the current page, not the base
                 # self.scopus_link = _SD_URL + link_tag.attrs['href']
                 self.scopus_link = link_tag.attrs['href']
-            elif 'class' in link_tag.attrs:
-                if 'S_C_pdfLink' in link_tag.attrs['class']:
+            elif 'class' in link_tag.attrs and 'S_C_pdfLink' in link_tag.attrs['class']:
                     # Link to PDF
                     self.pdf_link = _SD_URL + link_tag.attrs['href']
-                elif 'cLink' in link_tag.attrs['class']:
+            elif 'class' in link_tag.attrs and 'cLink' in link_tag.attrs['class']:
                     # Article Link
                     temp = link_tag.attrs['href']
                     match = re.search('/pii/(.*)', temp)
                     self.pii = match.group(1)
-            elif 'Full Text via CrossRef' in link_tag.text:
+                    self.doi = self.doi_from_crossref(self.pii)
+            elif 'CrossRef' in box_link.text:
                 # CrossRef link provides DOI as href
                 # In old code it was a query parameter but this
                 # has now moved to a "data-url" attribute
@@ -432,6 +436,24 @@ class ScienceDirectRef(object):
                     # import pdb
                     # pdb.set_trace()
                     raise Exception('Failed to match link')
+
+        # Finally, update if it is not an article
+        tag_class = ref_tags.get('class')[0]
+        if tag_class == 'article-reference-other-ref':
+            self.publication = ref_tags.find('em').text
+            self.title = ref_tags.text
+
+    def doi_from_crossref(self, pii):
+        url = 'http://search.crossref.org/?q=' + pii
+        resp = requests.get(url)
+        soup = BeautifulSoup(resp.text)
+        first_entry = soup.find('td', {'class' : 'item-data'})
+        if first_entry is None:
+            return None
+        entry_links = first_entry.find('div', {'class' : 'item-links'})
+        doi_link = entry_links.find('a')['href']
+        doi = doi_link[doi_link.find('.org/') + 5:]
+        return doi
 
     def to_data_frame(self, all_entries):
         """
@@ -801,6 +823,10 @@ def connect(pii, verbose=None):
     # This is to avoid dynamically loading page features on the desktop site
     # and because the mobile site has more cleanly organized information
     r = s.get(url, cookies={'Site': 'Mobile'})
+
+    with open('sd_test.html', 'wb') as file:
+        file.write(r.content)
+
     soup = BeautifulSoup(r.text)
 
     return soup

@@ -58,7 +58,7 @@ el.parse_raw_references(raw_refs)
 
 # Science Direct
 #=====================================================
-
+'''
 from pypub.scrapers import sciencedirect as sd
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
@@ -74,8 +74,8 @@ refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])
 
 import pdb
-#pdb.set_trace()
-
+pdb.set_trace()
+'''
 
 # Wiley
 #=====================================================
@@ -125,6 +125,10 @@ from pypub.scrapers import springer as sp
 sp_link = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
 sp_doi = '10.1186/s12984-016-0150-9'
 
+# This one works with dx.doi.org/ - the one above redirects to a specific journal page.
+sp_link = 'http://link.springer.com/article/10.1007/s10237-015-0706-9'
+sp_doi = '10.1007/s10237-015-0706-9'
+
 entry = sp.get_entry_info(sp_link, verbose=True)
 print(entry)
 
@@ -139,10 +143,11 @@ print(json.dumps(refs[0]))
 
 # Nature
 #=====================================================
-'''
+
 from pypub.scrapers import nature as nt
 
 nt_link = 'http://www.nature.com/nrg/journal/v15/n5/full/nrg3686.html'
+nt_doi = '10.1038/nrg3686'
 
 
 #entry = nt.get_entry_info(nt_link, verbose=True)
@@ -154,7 +159,7 @@ print(len(refs))
 
 #nature_pdf_link = nt.get_pdf_link(nt_link)
 #print(nature_pdf_link)
-'''
+
 
 
 """

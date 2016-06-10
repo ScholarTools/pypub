@@ -46,10 +46,10 @@ else:
 #-----------------------------------------------------
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from ScholarTools.pypub.pypub.utils import get_truncated_display_string as td
-from ScholarTools.pypub.pypub.utils import findValue
+from pypub.utils import get_truncated_display_string as td
+from pypub.utils import findValue
 
-from ScholarTools.pypub.pypub import errors
+from pypub_errors import *
 
 import re
 #-------------------
@@ -132,7 +132,7 @@ class Entry(object):
         # Get entry content information
         mainContent = soup.find('div', {'class' : 'ArticleHeader'})
         if mainContent is None:
-            raise errors.ParseException('Unable to find main content of page')
+            raise ParseException('Unable to find main content of page')
 
 
         # Metadata:
@@ -155,7 +155,7 @@ class Entry(object):
         # SpringerLink keeps keywords below the abstract, separate from header info
         keybox = soup.find('div', {'class' : 'KeywordGroup'})
         if keybox is None:
-            raise errors.ParseException('Unable to find keywords')
+            raise ParseException('Unable to find keywords')
         wordlist = keybox.find_all('span', {'class' : 'Keyword'})
         self.keywords = [w.text for w in wordlist]
 
@@ -387,9 +387,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise errors.ParseException("References were not found ..., code error likely")
+            raise ParseException("References were not found ..., code error likely")
         else:
-            raise errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG)
 

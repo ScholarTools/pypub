@@ -62,7 +62,7 @@ class Springer(Publisher):
                 #resp2 = requests.get(pdf_link)
                 raise KeyError('HTML response not implemented in pub_objects')
             elif 'application/pdf' in resp.headers['Content-Type']:
-                return resp
+                return resp.content
             else:
                 raise LookupError('Response not HTML or a PDF.')
         else:

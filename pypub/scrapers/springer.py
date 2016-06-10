@@ -57,7 +57,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
 
-import pypub_errors
+from pypub_errors import *
 
 #-------------------
 import requests
@@ -87,7 +87,8 @@ class SpringerAuthor(object):
         """
 
         # Get author name
-        self.raw = li_tag.contents[0].text
+        self.name = li_tag.contents[0].text
+        self.name = self.name.replace('\xa0', ' ')
 
         self.affiliations = None
         self.email = None
@@ -104,7 +105,7 @@ class SpringerAuthor(object):
 
     def __repr__(self):
         return u'' + \
-                'name: %s\n' % self.raw + \
+                'name: %s\n' % self.name + \
         'affiliations: %s\n' % self.affiliations + \
              'email: %s\n' % self.email
 
@@ -139,7 +140,7 @@ class SpringerEntry(object):
         # Get entry content information
         mainContent = soup.find('div', {'class' : 'ArticleHeader'})
         if mainContent is None:
-            raise pypub_errors.ParseException('Unable to find main content of page')
+            raise ParseException('Unable to find main content of page')
 
 
         # Metadata:
@@ -156,17 +157,37 @@ class SpringerEntry(object):
         self.year = self.date[-4:]
 
         self.volume = findValue(mainContent, 'span', 'ArticleCitation_Volume', 'class')
+        self.volume = self.volume.replace('Volume ', '')
 
         # SpringerLink doesn't seem to list article pages
         self.pages = None
 
+        # Keywords and Abstract
+        # ---------------------
         # SpringerLink keeps keywords below the abstract, separate from header info
+
         keybox = soup.find('div', {'class' : 'KeywordGroup'})
         if keybox is None:
-            raise pypub_errors.ParseException('Unable to find keywords')
+            raise ParseException('Unable to find keywords')
         wordlist = keybox.find_all('span', {'class' : 'Keyword'})
         self.keywords = [w.text for w in wordlist]
 
+        # Get abstract
+        abstract_section = soup.find('section', {'class' : 'Abstract'})
+        self.abstract = ''
+        abstract_parts = abstract_section.find_all('div', {'class' : 'AbstractSection'})
+        if len(abstract_parts) != 0:
+            for part in abstract_parts:
+                if part.find('h3') is not None:
+                    self.abstract = self.abstract + (part.find('h3').text)
+                    self.abstract = self.abstract + ('\n')
+                if part.find('p') is not None:
+                    self.abstract = self.abstract + (part.find('p').text)
+                    self.abstract = self.abstract + ('\n')
+        else:
+            abstract_text = abstract_section.find('p')
+            if abstract_text is not None:
+                self.abstract = self. abstract + (abstract_text.text)
 
         # DOI Retrieval:
         #---------------
@@ -191,14 +212,15 @@ class SpringerEntry(object):
 
     def __repr__(self):
         return u'' + \
-        '       title: %s\n' % td(self.title) + \
-        '     authors: %s\n' % self.authors + \
-        '    keywords: %s\n' % self.keywords + \
-        ' publication: %s\n' % self.publication + \
-        '        date: %s\n' % self.date + \
-        '      volume: %s\n' % self.volume + \
-        '       pages: %s\n' % self.pages + \
-        '         doi: %s\n' % self.doi
+        'title: %s\n' % td(self.title) + \
+        'authors: %s\n' % self.authors + \
+        'keywords: %s\n' % self.keywords + \
+        'publication: %s\n' % self.publication + \
+        'date: %s\n' % self.date + \
+        'volume: %s\n' % self.volume + \
+        'pages: %s\n' % self.pages + \
+        'doi: %s\n' % self.doi + \
+        'abstract: %s\n' % self.abstract
 
 
     @classmethod
@@ -266,6 +288,17 @@ class SpringerRef(object):
 
         self.citation = findValue(ref_tags, 'div', 'CitationContent', 'class')
 
+        # The authors are listed before the date, so we can grab those.
+        first_paren = self.citation.find('(')
+        author_string = self.citation[:first_paren]
+        author_list = author_string.split(', ')
+        self.authors = [a.strip() for a in author_list]
+
+        self.date = self.citation[first_paren+1:first_paren+5]
+
+        self.title = self.citation[first_paren+7:]
+        self.title.replace('CrossRef', '')
+
         '''
         self.title = findValue(ref_tags, 'span', 'articleTitle', 'class')
         authorlist = ref_tags.find_all('span', 'author', 'class')
@@ -308,6 +341,7 @@ class SpringerRef(object):
 
                 if 'OccurrenceDOI' in link['class']:
                     self.crossref = href
+                    self.doi = self.crossref[self.crossref.find('.org/')+5:]
                 elif 'OccurrencePID' in link['class']:
                     self.pubmed = href
                 elif 'OccurrencePMCID' in link['class']:
@@ -336,12 +370,15 @@ class SpringerRef(object):
 
     def __repr__(self):
         return u'' + \
-        '                    ref_id: %s\n' % self.ref_id + \
-        '                  citation: %s\n' % self.citation + \
-        '             crossref_link: %s\n' % self.crossref + \
-        '                    pubmed: %s\n' % self.pubmed + \
-        '            pubmed_central: %s\n' % self.pubmed_central + \
-        '                       doi: %s\n' % self.doi
+        'ref_id: %s\n' % self.ref_id + \
+        'citation: %s\n' % self.citation + \
+        'authors: %s\n' % self.authors + \
+        'date: %s \n' % self.date + \
+        'title: %s \n' % self.title + \
+        'crossref_link: %s\n' % self.crossref + \
+        'pubmed: %s\n' % self.pubmed + \
+        'pubmed_central: %s\n' % self.pubmed_central + \
+        'doi: %s\n' % self.doi
 
 
 
@@ -393,9 +430,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise pypub_errors.ParseException("References were not found ..., code error likely")
+            raise ParseException("References were not found ..., code error likely")
         else:
-            raise pypub_errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG)
 
@@ -429,7 +466,7 @@ def get_entry_info(input, verbose=False, soup=None):
 
 def get_pdf_link(input, verbose=False, soup=None):
     if soup is None:
-        make_soup(input, verbose)
+        soup = make_soup(input, verbose)
 
     dropdown = soup.find('div', {'class' : 'button-dropdown--linkgroup'})
     pdf_link = dropdown.find('a', {'title' : 'Download this article in PDF format'})['href']

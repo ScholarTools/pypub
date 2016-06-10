@@ -46,7 +46,7 @@ from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 
-import pypub_errors
+from pypub_errors import *
 
 import re
 import requests
@@ -158,11 +158,11 @@ class NatureEntry(object):
         content = soup.find('div', {'id' : 'content'})
         mainContent = content.find('header')
         if mainContent is None:
-            raise pypub_errors.ParseException('Unable to find main content of page')
+            raise ParseException('Unable to find main content of page')
 
 
         # Metadata:
-        #---------------
+        # ---------
         self.title = findValue(mainContent, 'h1', 'article-heading', 'class')
 
         # Isolate the entry citation line
@@ -185,13 +185,21 @@ class NatureEntry(object):
         self.keywords = None
 
         # DOI Retrieval:
-        #---------------
+        # --------------
         # This might be more reliable than assuming we have the DOI in the title
         self.doi = findValue(citation, 'dd', 'doi', 'class')
         self.doi = self.doi[4:] # to get rid of 'DOI:' at the beginning
 
+        # Abstract:
+        # ---------
+        self.abstract = ''
+        abstract_section = soup.find('div', {'id' : 'abstract'})
+        abstract_content = abstract_section.find('p')
+        if abstract_content is not None:
+            self.abstract = self.abstract + abstract_content.text
+
         # Authors:
-        #---------
+        # --------
         # Find list items within the ordered list with id 'authors'
         authorList = mainContent.find('ul', {'class':'authors'}).find_all('li')
         self.authors = [NatureAuthor(x) for x in authorList]
@@ -224,7 +232,8 @@ class NatureEntry(object):
             'date: %s\n' % self.date + \
             'volume: %s\n' % self.volume + \
             'pages: %s\n' % self.pages + \
-            'doi: %s\n' % self.doi
+            'doi: %s\n' % self.doi + \
+            'abstract: %s\n' % self.abstract
 
 
 # TODO: Inherit from some abstract ref class
@@ -397,9 +406,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*guest_tag)
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise pypub_errors.ParseException("References were not found ..., code error likely")
+            raise ParseException("References were not found ..., code error likely")
         else:
-            raise pypub_errors.InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
+            raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = ref_list.find_all('li', recursive=False)
 
@@ -452,7 +461,7 @@ def get_pdf_link(input):
     # Get entry content information
     toolbar = soup.find('div', {'id' : 'download-links'})
     if toolbar is None:
-        raise pypub_errors.ParseException('Unable to find download section of page')
+        raise ParseException('Unable to find download section of page')
 
     link = toolbar.find('li', {'class' : 'articlepdf'})
     href = link.find('a')['href']
@@ -557,8 +566,8 @@ def connect(input, isLink=False, verbose=None):
     resp = s.get(url)
     soup = BeautifulSoup(resp.text)
 
-    #with open('test_site.html', 'wb') as file:
-    #    file.write(resp.content)
+    with open('test_site.html', 'wb') as file:
+        file.write(resp.content)
 
 
     return soup

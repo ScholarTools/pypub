@@ -176,6 +176,8 @@ class Window(QWidget):
         except UnsupportedPublisherError:
             QMessageBox.warning(self, 'Warning', 'Unsupported Publisher')
             return
+        #except ParseException:
+        #    QMessageBox.warning(self, 'Warning', 'Error parsing journal page')
 
         # First clean up existing GUI window.
         # If there are widgets in the layout (i.e. from the last call to 'get_refs'),
@@ -307,6 +309,8 @@ class Window(QWidget):
             QMessageBox.warning(self, 'Warning', 'Publisher is not yet supported.\n'
                                                  'Document not added.')
             return
+        except CallFailedException as call:
+            QMessageBox.warning(self, 'Warning', str(call))
         self._update_document_status(doi, label=label, adding=True)
 
     def lookup_ref(self, doi):
@@ -339,8 +343,6 @@ class Window(QWidget):
         if doc_json is None:
             pass
         notes = doc_json.get('notes')
-        #self.nw = NotesWindow(parent=self, notes=notes, doc_json=doc_json)
-        #self.nw.show()
         self.tnw = TabbedNotesWindow(parent=self, notes=notes, doc_json=doc_json)
         self.tnw.show()
 
@@ -352,13 +354,15 @@ class Window(QWidget):
             reply = QMessageBox.question(self,'Message', 'Document not found in library.\nWould you like to add it?',
                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
-                self.add_to_library_from_label(label, label.doi, self.library)
+                self.add_to_library_from_label(label, label.doi)
                 return
             else:
                 return
         notes = doc_response_json.get('notes')
-        self.nw = NotesWindow(parent=self, notes=notes, doc_json=doc_response_json)
-        self.nw.show()
+        #self.nw = NotesWindow(parent=self, notes=notes, doc_json=doc_response_json)
+        #self.nw.show()
+        self.tnw = NotesWindow(parent=self, notes=notes, doc_json=doc_response_json)
+        self.tnw.show()
 
 
     # ++++++++++++++++++++++++++++++++++++++++++++
@@ -548,7 +552,7 @@ class NotesWindow(QWidget):
 
 
     def save(self):
-        updated_notes = self.notes_box.getText()
+        updated_notes = self.notes_box.toPlainText()
         notes_dict = {"notes" : updated_notes}
         self.parent.api.documents.update(self.doc_id, notes_dict)
         self.parent.library.sync()
@@ -631,6 +635,16 @@ class TabbedNotesWindow(QTabWidget):
         self.abstractUI()
         self.infoUI()
 
+        # Connect widgets
+        self.save_button.clicked.connect(self.save)
+        self.save_and_close_button.clicked.connect(self.save_and_close)
+        self.notes_box.textChanged.connect(self.updated_text)
+
+        if self.notes is not None:
+            self.notes_box.setText(self.notes)
+
+        self.saved = True
+
         self.show()
 
         #self.initUI()
@@ -684,10 +698,38 @@ class TabbedNotesWindow(QTabWidget):
 
 
     def infoUI(self):
-        import json
-        json_string = json.dumps(self.doc_json)
 
-        info_label = QLabel(json_string)
+        # list of things to include:
+        # publisher, authors, year, doi, title, identifiers(?), pages, volume
+
+        info = ''
+        if self.doc_json.get('title') is not None:
+            info = info + 'Title: ' + self.doc_json.get('title') + '\n'
+        author_list = self.doc_json.get('authors')
+        authors = ''
+        if author_list is not None:
+            for author in author_list:
+                authors = authors + author['first_name'] + ' ' + author['last_name'] + ', '
+            authors = authors[:-2] # Get rid of trailing comma
+        info = info + 'Authors: ' + authors + '\n'
+        if self.doc_json.get('publisher') is not None:
+            info = info + 'Publisher: ' + self.doc_json.get('publisher') + ','
+        if self.doc_json.get('year') is not None:
+            info = info + str(self.doc_json.get('year')) + '\n'
+        if self.doc_json.get('volume') is not None:
+            info = info + 'Volume: ' + self.doc_json.get('volume').strip() + ', '
+        if self.doc_json.get('issue') is not None:
+            info = info + 'Issue: ' + self.doc_json.get('issue') + '\n'
+        if self.doc_json.get('pages') is not None:
+            info = info + 'Pages: ' + self.doc_json.get('pages') + '\n'
+        ids = self.doc_json.get('identifiers')
+        if ids is not None:
+            info = info + 'Identifiers: '
+            for key in ids.keys():
+                info = info + key.upper() + ': ' + ids.get(key) + ', '
+            info = info[:-2] # Get rid of trailing comma
+
+        info_label = QLabel(info)
         info_label.setWordWrap(True)
 
         info_layout = QVBoxLayout()
@@ -717,7 +759,7 @@ class TabbedNotesWindow(QTabWidget):
             self.caption = self.doi
 
     def save(self):
-        updated_notes = self.notes_box.getText()
+        updated_notes = self.notes_box.toPlainText()
         notes_dict = {"notes" : updated_notes}
         self.parent.api.documents.update(self.doc_id, notes_dict)
         self.parent.library.sync()
@@ -801,7 +843,7 @@ class ReferenceLabel(QLabel):
         move_to_trash = menu.addAction("Move to trash")
         action = menu.exec_(self.mapToGlobal(QContextMenuEvent.pos()))
         if action == add_to_lib:
-            self.parent.add_to_library(self, self.reference.get('doi'))
+            self.parent.add_to_library_from_label(self, self.reference.get('doi'))
         elif action == ref_lookup:
             self.parent.lookup_ref(self.reference.get('doi'))
         elif action == move_to_trash:

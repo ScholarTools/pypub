@@ -58,7 +58,7 @@ el.parse_raw_references(raw_refs)
 
 # Science Direct
 #=====================================================
-'''
+
 from pypub.scrapers import sciencedirect as sd
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
@@ -66,6 +66,7 @@ sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
 sd_pii = 'S0006899313013048'
 
 #sd_link = 'http://www.sciencedirect.com/science/article/pii/S0092867413004674'
+sd_link = 'http://www.sciencedirect.com/science/article/pii/S0012160613006453'
 
 entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
@@ -74,8 +75,8 @@ refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])
 
 import pdb
-pdb.set_trace()
-'''
+#pdb.set_trace()
+
 
 # Wiley
 #=====================================================
@@ -143,23 +144,22 @@ print(json.dumps(refs[0]))
 
 # Nature
 #=====================================================
-
-from pypub.scrapers import nature as nt
+'''
+from pypub.scrapers import nature_nrg as nt_nrg
 
 nt_link = 'http://www.nature.com/nrg/journal/v15/n5/full/nrg3686.html'
 nt_doi = '10.1038/nrg3686'
 
+entry = nt_nrg.get_entry_info(nt_link, verbose=True)
+print(entry)
 
-#entry = nt.get_entry_info(nt_link, verbose=True)
-#print(entry)
-
-refs = nt.get_references(nt_link)
+refs = nt_nrg.get_references(nt_link)
 print(refs[0])
 print(len(refs))
 
 #nature_pdf_link = nt.get_pdf_link(nt_link)
 #print(nature_pdf_link)
-
+'''
 
 
 """

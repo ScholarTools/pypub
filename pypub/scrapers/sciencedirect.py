@@ -46,7 +46,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
 
-import pypub_errors
+from pypub_errors import *
 
 import pandas as pd
 import re
@@ -179,7 +179,7 @@ class ScienceDirectEntry(object):
         # This div and id are mobile site specific
         article_abstract = soup.find('div', id='article-abstract')
         if article_abstract is None:
-            raise pypub_errors.ParseException('Unable to find abstract section of page')
+            raise ParseException('Unable to find abstract section of page')
 
         # Things to get:
         # --------------
@@ -202,6 +202,8 @@ class ScienceDirectEntry(object):
         self.abstract = None
         abstract_sections = article_abstract.find_all('section', {'class' : 'article-abstract'})
         for a in abstract_sections:
+            if a.find('li') is not None:
+                continue
             paragraph = a.find('p', {'class' : 'para'})
             if paragraph is not None:
                 self.abstract = paragraph.text
@@ -216,6 +218,7 @@ class ScienceDirectEntry(object):
             self.doi = self.doi[4:]  # doi:10.######### => remove 'doi":'
 
         self.title = findValue(article_abstract, 'h1', 'article-title', 'class')
+
         # Authors:
         # -------
         # Look for <li> tags with class="author*"
@@ -440,7 +443,9 @@ class ScienceDirectRef(object):
         # Finally, update if it is not an article
         tag_class = ref_tags.get('class')[0]
         if tag_class == 'article-reference-other-ref':
-            self.publication = ref_tags.find('em').text
+            publication = ref_tags.find('em')
+            if publication is not None:
+                self.publication = publication.text
             self.title = ref_tags.text
 
     def doi_from_crossref(self, pii):
@@ -593,9 +598,9 @@ def get_references(input, verbose=False):
         temp = soup.find(*GUEST_TAG_TUPLE)
         if temp is None:
             # We might have no references ... (Doubtful)
-            raise pypub_errors.ParseException("References were not found ..., code error likely")
+            raise ParseException("References were not found ..., code error likely")
         else:
-            raise pypub_errors.InsufficientCredentialsException(
+            raise InsufficientCredentialsException(
                 "Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
     ref_tags = reference_section.find_all(*REFERENCE_TAG_TUPLE)
@@ -824,8 +829,8 @@ def connect(pii, verbose=None):
     # and because the mobile site has more cleanly organized information
     r = s.get(url, cookies={'Site': 'Mobile'})
 
-    with open('sd_test.html', 'wb') as file:
-        file.write(r.content)
+    #with open('sd_test.html', 'wb') as file:
+    #    file.write(r.content)
 
     soup = BeautifulSoup(r.text)
 

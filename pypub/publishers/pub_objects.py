@@ -69,14 +69,13 @@ class Springer(Publisher):
             raise LookupError('Could not get headers from web response.')
 
 
-class Nature(Publisher):
+class NatureNRG(Publisher):
     def get_pdf_content(self, file_url):
         """
         This one is nice because it doesn't return HTML.
         """
         resp = requests.get(file_url)
         return resp.content
-
 
 
 def _extract_content(resp, soup_tag, link_location):

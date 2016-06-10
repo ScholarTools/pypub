@@ -34,7 +34,6 @@ class Window(QWidget):
     TODOs:
      - Implement URL input capability, not just DOI
      - Possibly make the window tabbed with expanded functionality?
-     - Fix the appearance of "in library" indicator next to text box
      - Implement reading the abstract of any paper
 
     """
@@ -44,6 +43,11 @@ class Window(QWidget):
         self.library = self._instantiate_library()
         self.api = API()
         #loading.close_window()
+
+        # Connect copy to clipboard shortcut
+        self.copy_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
+        self.copy_shortcut.activated.connect(_copy_to_clipboard)
+
         self.initUI()
         self.data = Data()
 
@@ -131,6 +135,10 @@ class Window(QWidget):
 
         # Set layout to be the vertical box.
         self.setLayout(self.vbox)
+
+        # Connect copy to clipboard shortcut
+        self.copy_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
+        self.copy_shortcut.activated.connect(_copy_to_clipboard)
 
         # Sizing, centering, and showing
         self.resize(500,600)
@@ -526,6 +534,10 @@ class NotesWindow(QWidget):
         self.close_shortcut = QShortcut(QKeySequence("Ctrl+W"), self)
         self.close_shortcut.activated.connect(self.close)
 
+        # Connect copy to clipboard shortcut
+        self.copy_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
+        self.copy_shortcut.activated.connect(_copy_to_clipboard)
+
         self.setWindowTitle(self.caption)
         self.show()
 
@@ -582,8 +594,9 @@ class NotesWindow(QWidget):
 class TabbedNotesWindow(QTabWidget):
     """
     This is the smaller window that appears displaying notes for a given reference.
+    ...BUT NOW WITH TABS!
 
-    --- Features ---
+    --- Notes Tab Features ---
     * Text box: Displays the current notes saved for a given document, and allows
        for editing.
     * Save button: Saves the changes made to the notes, and syncs with Mendeley.
@@ -593,12 +606,17 @@ class TabbedNotesWindow(QTabWidget):
        making unsaved changes to the notes, a pop-up window appears asking
        to confirm the action without saving. Provides an option to save.
 
+    --- Abstract Tab Features ---
+    * The abstract. I don't know what else you expected.
+
+    --- Info Tab Features ---
+    * If available, lists all paper information including authors, title,
+       journal, volume, pages, and identifiers such as DOI.
+
     TODOs:
      - Fix the prompt before exit (currently appears when closing the main
         window, even after the notes window is gone. Maybe this has to do
         with having closed the window but not terminating the widget process?)
-     - Add informative window title to keep track of which paper is being
-        commented on.
      - Add (automatic or voluntary) feature to input a little note saying something
         like "edited with reference to [original file that references this one]"
 
@@ -635,11 +653,6 @@ class TabbedNotesWindow(QTabWidget):
         self.abstractUI()
         self.infoUI()
 
-        # Connect widgets
-        self.save_button.clicked.connect(self.save)
-        self.save_and_close_button.clicked.connect(self.save_and_close)
-        self.notes_box.textChanged.connect(self.updated_text)
-
         if self.notes is not None:
             self.notes_box.setText(self.notes)
 
@@ -652,23 +665,34 @@ class TabbedNotesWindow(QTabWidget):
     def notesUI(self):
         # Make widgets
         self.notes_title = QLabel('Notes:')
+        self.saving_status = QStackedWidget()
+        self.saving_label = QLabel('Saving...')
+        self.saved_label = QLabel('Saved!')
         self.notes_box = QTextEdit()
         self.save_button = QPushButton('Save')
         self.save_and_close_button = QPushButton('Save and Close')
-        self.saved_indicator = QLabel('Saved!')
-        self.saved_indicator.hide()
 
-        '''
+        # Populate saving_status label
+        self.saving_label.setStyleSheet("color:blue;")
+        self.saved_label.setStyleSheet("color:grey;")
+        self.saving_status.addWidget(self.saving_label)
+        self.saving_status.addWidget(self.saved_label)
+        self.saving_status.hide()
+
         # Connect widgets
         self.save_button.clicked.connect(self.save)
         self.save_and_close_button.clicked.connect(self.save_and_close)
         self.notes_box.textChanged.connect(self.updated_text)
-        '''
 
         if self.notes is not None:
             self.notes_box.setText(self.notes)
 
         self.saved = True
+
+        titlebox = QHBoxLayout()
+        titlebox.addWidget(self.notes_title)
+        titlebox.addStretch(1)
+        titlebox.addWidget(self.saving_status)
 
         hbox = QHBoxLayout()
         hbox.addWidget(self.save_button)
@@ -676,9 +700,8 @@ class TabbedNotesWindow(QTabWidget):
 
         # Make layout and add widgets
         vbox = QVBoxLayout()
-        vbox.addWidget(self.notes_title)
+        vbox.addLayout(titlebox)
         vbox.addWidget(self.notes_box)
-        vbox.addWidget(self.saved_indicator)
         vbox.addStretch(1)
 
         vbox.addLayout(hbox)
@@ -690,6 +713,7 @@ class TabbedNotesWindow(QTabWidget):
 
         abstract_label = QLabel(abstract)
         abstract_label.setWordWrap(True)
+        abstract_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
 
         abstract_layout = QVBoxLayout()
         abstract_layout.addWidget(abstract_label)
@@ -730,6 +754,7 @@ class TabbedNotesWindow(QTabWidget):
             info = info[:-2] # Get rid of trailing comma
 
         info_label = QLabel(info)
+        info_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         info_label.setWordWrap(True)
 
         info_layout = QVBoxLayout()
@@ -759,11 +784,27 @@ class TabbedNotesWindow(QTabWidget):
             self.caption = self.doi
 
     def save(self):
+        # Change label to indicate saving
+        self.saving_status.setCurrentIndex(0)
+        self.saving_status.show()
+
+        # Get plaintext notes from the notes box
+        # TODO: figure out how to get newline statements to appear
         updated_notes = self.notes_box.toPlainText()
         notes_dict = {"notes" : updated_notes}
+
+        # Update the Mendeley document with the new notes and sync with library
         self.parent.api.documents.update(self.doc_id, notes_dict)
         self.parent.library.sync()
+
+        # Update local version of notes to updated version and indicate saved
+        self.parent.data.doc_response_json['notes'] = updated_notes
         self.saved = True
+
+        # Change label to indicate saved
+        self.saving_status.setCurrentIndex(1)
+        self.saving_status.show()
+        QTimer.singleShot(2000, self.saving_status.hide)
 
     def save_and_close(self):
         self.save()
@@ -832,12 +873,17 @@ class ReferenceLabel(QLabel):
         self.ClickFilter = ClickFilter(self)
         self.installEventFilter(self.ClickFilter)
 
+        # Connect copy to clipboard shortcut
+        self.copy_shortcut = QShortcut(QKeySequence("Ctrl+C"), self)
+        self.copy_shortcut.activated.connect(_copy_to_clipboard)
+
         self.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.setWordWrap(True)
 
     def contextMenuEvent(self, QContextMenuEvent):
         menu = QMenu(self)
-        menu.setStyleSheet("background-color: white;")
+        menu.setStyleSheet("QMenu { background-color: #d9d9d9; }")
+
         add_to_lib = menu.addAction("Add to library")
         ref_lookup = menu.addAction("Look up references")
         move_to_trash = menu.addAction("Move to trash")
@@ -963,6 +1009,12 @@ def _delete_all_widgets(layout):
         item = layout.itemAt(startIndex).widget()
         layout.removeWidget(item)
         item.deleteLater()
+
+def _copy_to_clipboard():
+    clipboard = QApplication.clipboard()
+    #clipboard.setText()
+    event = QEvent(QEvent.Clipboard)
+    app.sendEvent(clipboard, event)
 
 
 if __name__ == '__main__':

@@ -566,8 +566,8 @@ def connect(input, isLink=False, verbose=None):
     resp = s.get(url)
     soup = BeautifulSoup(resp.text)
 
-    with open('test_site.html', 'wb') as file:
-        file.write(resp.content)
+    #with open('test_site.html', 'wb') as file:
+    #    file.write(resp.content)
 
 
     return soup

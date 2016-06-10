@@ -59,7 +59,7 @@ def findValue(tags, tag_name, label_name, label_type):
         # One of the tags is:
         <span class="r_publication">Can. J. Physiol. Pharmacol.</span>
 
-        self._findValue('span','r_publication')
+        findValue('span', 'class', 'r_publication')
 
         """
         temp = tags.find(tag_name, {'%s' % label_type: label_name})

@@ -9,3 +9,6 @@ test_pdf.pdf
 
 tkinter_gui.py
 gui_testing.py
+
+*.html
+*.pdf

@@ -170,21 +170,21 @@ class WileyEntry(object):
 
         # Keywords and Abstract:
         #----------
-        # TODO: Fix this keyword stuff
         productContent = soup.find('div', {'id' : 'productContent'})
         keybox = productContent.find('div', {'class' : 'keywordLists'})
         #keybox = soup.find('ul', {'class' : 'keywordList'})
         if keybox is None:
-            #raise ParseException('Unable to find keywords')
-            print('Unable to find keywords')
             self.keywords = None
+            raise ParseException('Unable to find keywords')
         else:
             wordlist = keybox.find_all('li')
             self.keywords = [w.text for w in wordlist]
-        #self.keywords = None
 
         abstract_section = productContent.find('div', {'id' : 'abstract'})
-        self.abstract = abstract_section.text
+        if abstract_section is not None:
+            self.abstract = abstract_section.text
+        else:
+            self.abstract = None
 
 
         # DOI Retrieval:
@@ -596,14 +596,14 @@ def extract_doi(url):
 def connect(doi, type, verbose=None):
     # Add the correct URL suffix:
     if type == 'references':
-        SUFFIX = '/references'
+        suffix = '/references'
     elif type == 'entry':
-        SUFFIX = '/abstract'
+        suffix = '/abstract'
     else:
-        SUFFIX = None
+        suffix = None
 
     # Construct valid Wiley URL from given DOI
-    url = _WY_URL + '/doi/' + doi + SUFFIX
+    url = _WY_URL + '/doi/' + doi + suffix
 
     # Web page retrieval
     #-------------------
@@ -622,7 +622,7 @@ def connect(doi, type, verbose=None):
     #
     backlink = soup.find('a', {'id' : 'wol1backlink'})
     if backlink is not None:
-        url = _WY_URL + '/wol1/doi/' + doi + '/references'
+        url = _WY_URL + '/wol1/doi/' + doi + suffix
         r = requests.session().get(url)
         soup = BeautifulSoup(r.text)
 

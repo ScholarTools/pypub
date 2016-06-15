@@ -68,6 +68,8 @@ sd_pii = 'S0006899313013048'
 #sd_link = 'http://www.sciencedirect.com/science/article/pii/S0092867413004674'
 sd_link = 'http://www.sciencedirect.com/science/article/pii/S0012160613006453'
 
+sd_link = 'http://www.sciencedirect.com/science/article/pii/S0968432807001047'
+
 entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
 
@@ -78,7 +80,7 @@ print(refs[0])
 
 # Wiley
 #=====================================================
-'''
+
 from pypub.scrapers import wiley as wy
 
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
@@ -95,7 +97,7 @@ print(refs[0])
 
 #pdf_link = wy.get_pdf_link(wiley_link)
 #print(pdf_link)
-'''
+
 '''
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/abstract'
 wiley_doi = '10.1111/j.1464-4096.2004.04875.x'
@@ -130,7 +132,9 @@ sp_doi = '10.1186/s12984-016-0150-9'
 sp_link = 'http://link.springer.com/article/10.1007/s10237-015-0706-9'
 sp_doi = '10.1007/s10237-015-0706-9'
 
-entry = sp.get_entry_info(sp_link, verbose=True)
+sp_doi = '10.1007/s10237-006-0048-8'
+
+entry = sp.get_entry_info(sp_doi, verbose=True)
 print(entry)
 
 refs = sp.get_references(sp_link, verbose=True)
@@ -144,7 +148,7 @@ print(json.dumps(refs[0]))
 
 # Nature
 #=====================================================
-
+'''
 from pypub.scrapers import nature_nrg as nt_nrg
 
 nt_link = 'http://www.nature.com/nrg/journal/v15/n5/full/nrg3686.html'
@@ -161,7 +165,7 @@ print(len(refs))
 
 #nature_pdf_link = nt.get_pdf_link(nt_link)
 #print(nature_pdf_link)
-
+'''
 
 
 """

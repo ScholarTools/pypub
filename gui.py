@@ -59,12 +59,13 @@ class Window(QWidget):
     def initUI(self):
 
         # Make all widgets
-        self.entryLabel = QLabel('Please enter a DOI or URL')
+        self.entryLabel = QLabel('Please enter a DOI')
         self.indicator = QPushButton()
         self.textEntry = QLineEdit()
         self.doi_check = QRadioButton('DOI')
         self.doi_check.setChecked(True)
         self.url_check = QRadioButton('URL')
+        self.refresh = QPushButton('Sync with Library')
         self.get_references = QPushButton('Get References')
         self.open_notes = QPushButton('Open Notes')
         self.add_to_lib = QPushButton('Add to Library')
@@ -79,6 +80,7 @@ class Window(QWidget):
         self.open_notes.clicked.connect(self.show_main_notes_box)
         self.add_to_lib.clicked.connect(self.add_to_library_from_main)
         self.get_all_refs.clicked.connect(self.add_all_refs)
+        self.refresh.clicked.connect(self.resync)
 
         # Format indicator button
         self.indicator.setStyleSheet("background-color: rgba(0,0,0,0.25);")
@@ -117,8 +119,9 @@ class Window(QWidget):
         # The radiobuttons having the same parent widget ensures
         # that they are part of a group and only one can be checked.
         checkboxes = QHBoxLayout()
-        checkboxes.addWidget(self.doi_check)
-        checkboxes.addWidget(self.url_check)
+        #checkboxes.addWidget(self.doi_check)
+        #checkboxes.addWidget(self.url_check)
+        checkboxes.addWidget(self.refresh)
         checkboxes.addWidget(self.get_references)
         checkboxes.addWidget(self.open_notes)
         checkboxes.addWidget(self.add_to_lib)
@@ -174,6 +177,9 @@ class Window(QWidget):
             self.indicator.setStyleSheet("background-color: rgba(255, 0, 0, 0.25);")
             self.is_in_lib = False
 
+    def resync(self):
+        self.library.sync()
+
     def get_refs(self):
         """
         Gets references for paper corresponding to the DOI in text field.
@@ -198,9 +204,11 @@ class Window(QWidget):
         except UnsupportedPublisherError:
             QMessageBox.warning(self, 'Warning', 'Unsupported Publisher')
             return
-        except ParseException:
+        except ParseException or AttributeError:
             QMessageBox.warning(self, 'Warning', 'Error parsing journal page')
             return
+        except Exception as exe:
+            QMessageBox.warning(self, 'Warning', str(exe))
 
         # First clean up existing GUI window.
         # If there are widgets in the layout (i.e. from the last call to 'get_refs'),
@@ -236,6 +244,10 @@ class Window(QWidget):
             return
         except CallFailedException as call:
             QMessageBox.warning(self, 'Warning', str(call))
+        except ParseException or AttributeError as ex:
+            QMessageBox.warning(self, 'Warning', 'Error while parsing article webpage.')
+        except Exception as exe:
+            QMessageBox.warning(self, 'Warning', str(exe))
         self._update_document_status(doi, adding=True)
         self.update_indicator()
 
@@ -409,9 +421,12 @@ class Window(QWidget):
         except ParseException as ex:
             if popups:
                 QMessageBox.warning(self, 'Warning', str(ex))
-        #except TypeError:
-        #    if popups:
-        #        QMessageBox.warning(self, 'Warning', 'Error parsing page.')
+        except TypeError or AttributeError:
+            if popups:
+                QMessageBox.warning(self, 'Warning', 'Error parsing page.')
+        except Exception as exe:
+            if popups:
+                QMessageBox.warning(self, 'Warning', str(exe))
         self._update_document_status(doi, label=label, adding=True)
 
     def lookup_ref(self, doi):
@@ -580,7 +595,7 @@ class Window(QWidget):
         self.data.small_ref_labels = []
         self.data.expanded_ref_labels = []
 
-    def _update_document_status(self, doi, label=None, adding=False):
+    def _update_document_status(self, doi, label=None, adding=False, popups=True):
         """
         Updates the indicators about whether a certain paper is in the user's library.
         If from a reference label, change color of that label.
@@ -628,6 +643,7 @@ class Window(QWidget):
                 self.is_in_lib = True
         else:
             if adding:
+                if popups:
                     QMessageBox.warning(self, 'Warning', 'An error occurred during sync.\n'
                                         'Document may not have been added.')
             if label is not None:

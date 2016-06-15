@@ -1,53 +1,62 @@
+# Standard imports
+import os
+import inspect
 import csv
 
+# Third party imports
+import requests
 
-def resolve_link(link):
-    """
-    Gets the paper and references information from a link (URL)
-    to a specific journal article page.
-
-    Parameters
-    ----------
-    link : str
-        URL to journal article page on publisher's website.
-        Example: http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references
-
-    Returns
-    -------
-    pub_dict : dict
-        See resolve_citation for description.
-
-    """
-    import os
-    import inspect
-
-    # First format the link correctly and determine the publisher
-    # ---------------------
-    # Make sure 'http://' and not 'www.' is at the beginning
-    link = link.replace('www.', '')
-    if link[0:4] != 'http':
-        link = 'http://' + link
-
-    base_url = link[:link.find('.com')+4]
+# Local imports
+from pypub_errors import *
 
 
-    # Get absolute path to CSV file
+def get_publisher_urls(doi=None, url=None):
+    # Get or make CrossRef link, then follow it to get article URL
+    if url is not None:
+        resp = requests.get(url)
+        pub_url = resp.url
+    else:
+        resp = requests.get('http://dx.doi.org/' + doi)
+        pub_url = resp.url
+
+    end_index = pub_url.find('.com') + 4
+    base_url = pub_url[:end_index]
+
+    # Nature sites are specific to the different journals
+    # I.e. http://nature.com/nrg is for Nature Reviews Genetics
+    if 'nature' in base_url:
+        base_url = pub_url[:end_index+4]
+
+    base_url = base_url.replace('www.', '')
+
+    return base_url, pub_url
+
+
+def get_publisher_site_info(base_url):
+    # Add the site_features.csv file to the path
     current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    file_path = os.path.join(current_dir, 'site_features.csv')
-    pub_dict = None
+    root = os.path.dirname(current_dir)
+    #site_features_file = os.path.join(root, '/publishers/site_features.csv')
+    site_features_file = root + '/publishers/site_features.csv'
 
     # Now search the site_features.csv file to get information relevant to that provider
-    with open(file_path) as f:
+    with open(site_features_file) as f:
         reader = csv.reader(f)
         headings = next(reader)  # Save the first line as the headings
         values = None
         for row in enumerate(reader):
             if base_url in row[1]:
-                values = row[1]  # Once the correct row is found, save it as values
-                pub_dict = dict(zip(headings, values))
+                # Once the correct row is found, save it as values.
+                # The [1] here is needed because 'row' is a list where
+                # the first value is the row number and the second is
+                # the entire list of headings.
+                values = row[1]
                 break
 
-    if pub_dict is None:
-        raise KeyError('No publisher information found. Publisher is not currently supported.')
-    else:
-        return pub_dict
+    if values is None:
+        raise UnsupportedPublisherError('No scraper is yet implemented for this publisher')
+
+    # Turn the headings and values into a callable dict
+    pub_dict = dict(zip(headings, values))
+
+    return pub_dict

@@ -92,14 +92,18 @@ class WileyAuthor(object):
         # Extract all integers from the superscripted text
         # This way each author object has a list of superscripts
         # corresponding to the affiliation list indices.
-        super = li_tag.find('sup').text
-        self.superscripts = re.findall(r'\d+', super)
+        super = li_tag.find('sup')
+        if super is not None:
+            super = super.text
+            self.superscripts = re.findall(r'\d+', super)
 
-        if super.find('*') != -1:
-            self.contact = 1
+            if super.find('*') != -1:
+                self.contact = 1
+            else:
+                self.contact = None
         else:
             self.contact = None
-
+            self.superscripts = []
         self.email = None
 
     #
@@ -145,10 +149,16 @@ class WileyEntry(object):
         if mainContent is None:
             raise ParseException('Unable to find main content of page')
 
+        # Check for 'Page Not Found'
+        error404 = mainContent.find('div', {'id' : 'error'})
+        if error404 is not None:
+            raise ParseException('Article was not found.')
 
         # Metadata:
         #---------------
         self.title = findValue(mainContent, 'span', 'mainTitle', 'class').title()
+        if self.title is not None:
+            self.title = self.title.title()
 
         self.publication = findValue(mainContent, 'h2', 'productTitle', 'id')
 
@@ -172,10 +182,8 @@ class WileyEntry(object):
         #----------
         productContent = soup.find('div', {'id' : 'productContent'})
         keybox = productContent.find('div', {'class' : 'keywordLists'})
-        #keybox = soup.find('ul', {'class' : 'keywordList'})
         if keybox is None:
             self.keywords = None
-            raise ParseException('Unable to find keywords')
         else:
             wordlist = keybox.find_all('li')
             self.keywords = [w.text for w in wordlist]
@@ -211,7 +219,10 @@ class WileyEntry(object):
             self.affiliations[a] = self.affiliations[a].replace('            ', '')
 
         corr = mainContent.find('p', {'id' : 'correspondence'})
-        email = findValue(corr, 'a', 'Link to email address', 'title')
+        if corr is not None:
+            email = findValue(corr, 'a', 'Link to email address', 'title')
+        else:
+            email = ''
 
         # Assign affiliations to authors
         for author in self.authors:
@@ -439,8 +450,9 @@ def get_references(input, verbose=False):
         print("reference_section is None")
         temp = soup.find(*GUEST_TAG)
         if temp is None:
-            #We might have no references ... (Doubtful)
-            raise ParseException("References were not found ..., code error likely")
+            #We might have no references ...
+            return []
+            #raise ParseException("References were not found")
         else:
             raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
@@ -625,5 +637,8 @@ def connect(doi, type, verbose=None):
         url = _WY_URL + '/wol1/doi/' + doi + suffix
         r = requests.session().get(url)
         soup = BeautifulSoup(r.text)
+
+    #with open('wiley_test.html', 'wb') as file:
+    #    file.write(r.content)
 
     return soup

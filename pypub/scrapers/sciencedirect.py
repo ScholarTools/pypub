@@ -392,6 +392,7 @@ class ScienceDirectRef(object):
         self.pii = None
         self.pdf_link = None
         self.scopus_cite_count = None
+        self.aps_full_text = None
 
         # This code is a bit hard to read but each 'if statement' shows what
         # is needed in order to resolve the item.
@@ -426,6 +427,8 @@ class ScienceDirectRef(object):
             elif "Purchase" in box_link.text:
                 # New link added to Purchase pdf. It was throwing errors
                 pass
+            elif 'aps full text' in box_link.text.lower():
+                self.aps_full_text = link_tag.attrs['href']
             else:
                 span_tag = link_tag.find('span')
                 if 'citedBy_' in span_tag.attrs['class']:
@@ -503,7 +506,8 @@ class ScienceDirectRef(object):
                '              doi: %s\n' % self.doi + \
                '              pii: %s\n' % self.pii + \
                '         pdf_link: %s\n' % td(self.pdf_link) + \
-               'scopus_cite_count: %s\n' % self.scopus_cite_count
+               'scopus_cite_count: %s\n' % self.scopus_cite_count + \
+               '    aps full text: %s\n' % self.aps_full_text
 
 
 def ReferenceParser(object):

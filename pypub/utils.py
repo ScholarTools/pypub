@@ -38,6 +38,13 @@ def convert_to_dict(obj):
     return obj
 
 
+def refs_to_list(refs):
+    ref_list = []
+    for ref in refs:
+        ref_list.append(convert_to_dict(ref))
+    return ref_list
+
+
 def findValue(tags, tag_name, label_name, label_type):
         """
         This is a small helper that is used to pull out values from a tag

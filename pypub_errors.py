@@ -10,3 +10,12 @@ class ParseException(Exception):
 
 class InsufficientCredentialsException(Exception):
     pass
+
+class InputError(Exception):
+    pass
+
+class ScraperError(Exception):
+    pass
+
+class UnsupportedPublisherError(Exception):
+    pass

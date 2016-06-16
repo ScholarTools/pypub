@@ -439,8 +439,6 @@ class ScienceDirectRef(object):
                     # do this only if all else fails.
                     self._data_sceid = span_tag.attrs['data-sceid']
                 else:
-                    # import pdb
-                    # pdb.set_trace()
                     raise Exception('Failed to match link')
 
         # Finally, update if it is not an article
@@ -459,8 +457,12 @@ class ScienceDirectRef(object):
         if first_entry is None:
             return None
         entry_links = first_entry.find('div', {'class' : 'item-links'})
-        doi_link = entry_links.find('a')['href']
-        doi = doi_link[doi_link.find('.org/') + 5:]
+        links = entry_links.find_all('a')
+        doi = ''
+        for link in links:
+            if 'dx.doi.org' in link['href']:
+                doi_link = link['href']
+                doi = doi_link[doi_link.find('dx.doi.org/') + 11:]
         return doi
 
     def to_data_frame(self, all_entries):

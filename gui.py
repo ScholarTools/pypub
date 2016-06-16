@@ -11,6 +11,7 @@ from mendeley import client_library
 from mendeley.api import API
 import reference_resolver as rr
 from pypub.utils import get_truncated_display_string as td
+from error_logging import log
 
 from mendeley_errors import *
 from pypub_errors import *
@@ -179,6 +180,18 @@ class Window(QWidget):
 
     def resync(self):
         self.library.sync()
+        if self.ref_items_layout.count() > 1:
+            for x in range(1, self.ref_items_layout.count()):
+                label = self.ref_items_layout.itemAt(x).widget()
+                doi = label.doi
+                if doi is not None:
+                    exists = self.library.check_for_document(doi)
+                    if exists:
+                        label.setStyleSheet("background-color: rgba(0,255,0,0.25);")
+                    else:
+                        label.setStyleSheet("background-color: rgba(255,0,0,0.25);")
+        self.update_indicator()
+
 
     def get_refs(self):
         """
@@ -201,14 +214,17 @@ class Window(QWidget):
             paper_info = rr.resolve_doi(entered_doi)
             refs = paper_info.references
             self._populate_data(paper_info)
-        except UnsupportedPublisherError:
+        except UnsupportedPublisherError as exc:
+            log(method='gui.Window.get_refs', message='Unsupported Publisher', error=str(exc), doi=entered_doi)
             QMessageBox.warning(self, 'Warning', 'Unsupported Publisher')
             return
-        except ParseException or AttributeError:
+        except ParseException or AttributeError as exc:
+            log(method='gui.Window.get_refs', message='Error parsing journal page', error=str(exc), doi=entered_doi)
             QMessageBox.warning(self, 'Warning', 'Error parsing journal page')
             return
-        except Exception as exe:
-            QMessageBox.warning(self, 'Warning', str(exe))
+        except Exception as exc:
+            log(method='gui.Window.get_refs', error=str(exc), doi=entered_doi)
+            QMessageBox.warning(self, 'Warning', str(exc))
 
         # First clean up existing GUI window.
         # If there are widgets in the layout (i.e. from the last call to 'get_refs'),
@@ -238,16 +254,21 @@ class Window(QWidget):
 
         try:
             self.library.add_to_library(doi)
-        except UnsupportedPublisherError:
+        except UnsupportedPublisherError as exc:
+            log(method='gui.Window.add_to_library_from_main', message='Unsupported publisher', error=str(exc), doi=doi)
             QMessageBox.warning(self, 'Warning', 'Publisher is not yet supported.\n'
                                                  'Document not added.')
             return
         except CallFailedException as call:
+            log(method='gui.Window.add_to_library_from_main', message='Call failed', error=str(call), doi=doi)
             QMessageBox.warning(self, 'Warning', str(call))
-        except ParseException or AttributeError as ex:
+        except ParseException or AttributeError as exc:
+            log(method='gui.Window.add_to_library_from_main', message='Error while parsing article webpage',
+                error=str(exc), doi=doi)
             QMessageBox.warning(self, 'Warning', 'Error while parsing article webpage.')
-        except Exception as exe:
-            QMessageBox.warning(self, 'Warning', str(exe))
+        except Exception as exc:
+            log(method='gui.Window.add_to_library_from_main', error=str(exc), doi=doi)
+            QMessageBox.warning(self, 'Warning', str(exc))
         self._update_document_status(doi, adding=True)
         self.update_indicator()
 
@@ -261,11 +282,13 @@ class Window(QWidget):
         if self.ref_items_layout.count() == 1:
             self.get_refs()
 
+        main_doi = self._get_doi()
+
         for x in range(1, self.ref_items_layout.count()):
             label = self.ref_items_layout.itemAt(x).widget()
             doi = label.doi
             print(label.small_text)
-            self.add_to_library_from_label(label, doi, popups=False)
+            self.add_to_library_from_label(label, doi, index=x, referencing_paper=main_doi, popups=False)
 
 
     # ++++++++++++++++++++++++++++++++++++++++++++
@@ -381,7 +404,7 @@ class Window(QWidget):
     # ++++++++++++++++++++++++++++++++++++++++++++
     # ============================================ Reference Label Right-Click Functions
     # ++++++++++++++++++++++++++++++++++++++++++++
-    def add_to_library_from_label(self, label, doi, popups=True):
+    def add_to_library_from_label(self, label, doi, index=None, referencing_paper=None, popups=True):
         """
         Adds reference paper to library from right-clicking on a label.
 
@@ -409,25 +432,35 @@ class Window(QWidget):
         # Try to add, have separate windows for each possible error
         try:
             self.library.add_to_library(doi)
-        except UnsupportedPublisherError:
+        except UnsupportedPublisherError as exc:
+            log(method='gui.Window.add_to_library_from_label', message='Publisher unsupported', error=str(exc), doi=doi,
+                ref_index=index, main_lookup=referencing_paper)
             if popups:
                 QMessageBox.warning(self, 'Warning', 'Publisher is not yet supported.\n'
                                     'Document not added.')
             return
         except CallFailedException as call:
+            log(method='gui.Window.add_to_library_from_label', message='Call failed', error=str(call), doi=doi,
+                ref_index=index, main_lookup=referencing_paper)
             if popups:
                 QMessageBox.warning(self, 'Warning', str(call))
             return
-        except ParseException as ex:
+        except ParseException as exc:
+            log(method='gui.Window.add_to_library_from_label', message='Error parsing webpage', error=str(exc), doi=doi,
+                ref_index=index, main_lookup=referencing_paper)
             if popups:
-                QMessageBox.warning(self, 'Warning', str(ex))
-        except TypeError or AttributeError:
+                QMessageBox.warning(self, 'Warning', str(exc))
+        except TypeError or AttributeError as exc:
+            log(method='gui.Window.add_to_library_from_label', message='Error parsing webpage', error=str(exc), doi=doi,
+                ref_index=index, main_lookup=referencing_paper)
             if popups:
                 QMessageBox.warning(self, 'Warning', 'Error parsing page.')
-        except Exception as exe:
+        except Exception as exc:
+            log(method='gui.Window.add_to_library_from_label', error=str(exc), doi=doi,
+                ref_index=index, main_lookup=referencing_paper)
             if popups:
-                QMessageBox.warning(self, 'Warning', str(exe))
-        self._update_document_status(doi, label=label, adding=True)
+                QMessageBox.warning(self, 'Warning', str(exc))
+        self._update_document_status(doi, label=label, adding=True, popups=popups)
 
     def lookup_ref(self, doi):
         """

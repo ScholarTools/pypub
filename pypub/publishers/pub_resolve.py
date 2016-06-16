@@ -8,6 +8,7 @@ import requests
 
 # Local imports
 from pypub_errors import *
+from pypub import utils
 
 
 def get_publisher_urls(doi=None, url=None):
@@ -19,13 +20,18 @@ def get_publisher_urls(doi=None, url=None):
         resp = requests.get('http://dx.doi.org/' + doi)
         pub_url = resp.url
 
-    end_index = pub_url.find('.com') + 4
+    # Extract the 'base URL' from the full url.
+    # This will be everything before the third instance of '/'
+    # I.e. for the site http://example.com/site/path, the base
+    # URL will be 'http://example.com'
+    end_index = utils.find_nth(pub_url, '/', 3)
     base_url = pub_url[:end_index]
 
     # Nature sites are specific to the different journals
     # I.e. http://nature.com/nrg is for Nature Reviews Genetics
     if 'nature' in base_url:
-        base_url = pub_url[:end_index+4]
+        nature_end_index = utils.find_nth(pub_url, '/', 4)
+        base_url = pub_url[:nature_end_index]
 
     base_url = base_url.replace('www.', '')
 
@@ -54,7 +60,7 @@ def get_publisher_site_info(base_url):
                 break
 
     if values is None:
-        raise UnsupportedPublisherError('No scraper is yet implemented for this publisher')
+        raise UnsupportedPublisherError('Publisher with URL %s is unsupported.' % base_url)
 
     # Turn the headings and values into a callable dict
     pub_dict = dict(zip(headings, values))

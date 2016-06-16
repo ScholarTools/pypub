@@ -45,6 +45,16 @@ def refs_to_list(refs):
     return ref_list
 
 
+def find_nth(string, target, n):
+    # Returns the index of the nth instance of substring 'target'
+    # within string 'string'.
+    start = string.find(target)
+    while start >= 0 and n > 1:
+        start = string.find(target, start+len(target))
+        n -= 1
+    return start
+
+
 def findValue(tags, tag_name, label_name, label_type):
         """
         This is a small helper that is used to pull out values from a tag

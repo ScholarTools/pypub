@@ -58,7 +58,7 @@ el.parse_raw_references(raw_refs)
 
 # Science Direct
 #=====================================================
-'''
+
 from pypub.scrapers import sciencedirect as sd
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
@@ -68,19 +68,19 @@ sd_pii = 'S0006899313013048'
 #sd_link = 'http://www.sciencedirect.com/science/article/pii/S0092867413004674'
 sd_link = 'http://www.sciencedirect.com/science/article/pii/S0012160613006453'
 
-sd_link = 'http://www.sciencedirect.com/science/article/pii/S0968432807001047'
+sd_link = 'http://www.sciencedirect.com/science/article/pii/S0006349513006176'
 
 entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
 
 refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])
-'''
+
 
 
 # Wiley
 #=====================================================
-
+'''
 from pypub.scrapers import wiley as wy
 
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1002/biot.201400046/references'
@@ -97,7 +97,7 @@ print(refs[0])
 
 #pdf_link = wy.get_pdf_link(wiley_link)
 #print(pdf_link)
-
+'''
 '''
 wiley_link = 'http://onlinelibrary.wiley.com/doi/10.1111/j.1464-4096.2004.04875.x/abstract'
 wiley_doi = '10.1111/j.1464-4096.2004.04875.x'

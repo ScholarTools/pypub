@@ -1,6 +1,10 @@
 Code summary
 ==============
 
+.. image:: https://badges.gitter.im/ScholarTools/pypub.svg
+   :alt: Join the chat at https://gitter.im/ScholarTools/pypub
+   :target: https://gitter.im/ScholarTools/pypub?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 This code is currently under development. The goal is to bring together APIs and/or scrapers for working with publication websites (and related material).
 
 When I have some functional examples of this in action I'll add them!

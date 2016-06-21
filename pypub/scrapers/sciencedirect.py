@@ -27,11 +27,10 @@ Currently I am building something that allows extraction of references from
 a Sciencedirect URL.
 
 """
-
+# Standard imports
 import sys
-
 import os
-
+import re
 # TODO: Move this into a compatability module
 # -----------------------------------------------------
 PY2 = sys.version_info.major == 2
@@ -42,17 +41,18 @@ else:
     from urllib.parse import unquote as urllib_unquote
 # -----------------------------------------------------
 
+# Third party imports
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+
+# Local imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
-
 from pypub_errors import *
+from pypub.scrapers.ref_object import BaseRef
 
-import pandas as pd
-import re
-# ------------------
-import requests
-from bs4 import BeautifulSoup
 
 _SD_URL = 'http://www.sciencedirect.com'
 
@@ -264,7 +264,7 @@ class ScienceDirectEntry(object):
 
 # TODO: Inherit from some abstract ref class
 # I think the abstract class should only require conversion to a common standard
-class ScienceDirectRef(object):
+class ScienceDirectRef(BaseRef):
     """
     This is the result class of calling get_references. It contains the
     bibliographic information about the reference, as well as additional meta 
@@ -316,7 +316,6 @@ class ScienceDirectRef(object):
     """
 
     def __init__(self, ref_tags, ref_link_info, ref_id):
-
         """
      
         Parameters:
@@ -333,6 +332,7 @@ class ScienceDirectRef(object):
             
      
         """
+        super().__init__()
 
         # Reference Bibliography Section:
         # -------------------------------

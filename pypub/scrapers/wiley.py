@@ -30,29 +30,28 @@ a Wiley URL.
 
 
 """
-
+# Standard imports
 import sys
-
 import os
-
+import re
 if sys.version_info.major == 2:
     from urllib import unquote as urllib_unquote
     from urllib import quote as urllib_quote
 else:
     from urllib.parse import unquote as urllib_unquote
     from urllib.parse import quote as urllib_quote
-# -----------------------------------------------------
 
+# Third party imports
+import requests
+from bs4 import BeautifulSoup
+
+# Local imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
-
 from pypub_errors import *
-
-import re
-import requests
-from bs4 import BeautifulSoup
+from pypub.scrapers.ref_object import BaseRef
 
 _WY_URL = 'http://onlinelibrary.wiley.com'
 
@@ -253,7 +252,7 @@ class WileyEntry(object):
 
 # TODO: Inherit from some abstract ref class
 # I think the abstract class should only require conversion to a common standard
-class WileyRef(object):
+class WileyRef(BaseRef):
     """
     This is the result class of calling get_references. It contains the
     bibliographic information about the reference, as well as additional meta
@@ -301,7 +300,7 @@ class WileyRef(object):
 
 
         """
-
+        super().__init__()
         # Reference Bibliography Section:
         #--------------------------------
         self.ref_id = ref_id + 1 # Input is 0 indexed

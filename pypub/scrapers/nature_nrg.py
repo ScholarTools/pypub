@@ -30,27 +30,22 @@ a Nature URL.
 
 
 """
-
+# Standard
 import sys
-
 import os
+import re
 
-if sys.version_info.major == 2:
-    pass
-else:
-    pass
-# -----------------------------------------------------
+# Third party
+import requests
+from bs4 import BeautifulSoup
 
+# Local
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
-
 from pypub_errors import *
-
-import re
-import requests
-from bs4 import BeautifulSoup
+from pypub.scrapers.ref_object import BaseRef
 
 _NT_URL = 'http://nature.com'
 
@@ -238,7 +233,7 @@ class NatureEntry(object):
 
 # TODO: Inherit from some abstract ref class
 # I think the abstract class should only require conversion to a common standard
-class NatureRef(object):
+class NatureRef(BaseRef):
     """
     This is the result class of calling get_references. It contains the
     bibliographic information about the reference, as well as additional meta
@@ -286,6 +281,7 @@ class NatureRef(object):
 
 
         """
+        super().__init__()
 
         # Reference Bibliography Section:
         #--------------------------------

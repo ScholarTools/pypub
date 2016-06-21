@@ -38,30 +38,20 @@ Currently I am building something that allows extraction of references from
 a Springer Link URL.
 
 """
-
+# Standard imports
 import sys
-
 import os
 
-#TODO: Move this into a compatability module
-#-----------------------------------------------------
-PY2 = sys.version_info.major == 2
+# Third party imports
+import requests
+from bs4 import BeautifulSoup
 
-if PY2:
-    pass
-else:
-    pass
-#-----------------------------------------------------
-
+# Local imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
-
 from pypub_errors import *
-
-#-------------------
-import requests
-from bs4 import BeautifulSoup
+from pypub.scrapers.ref_object import BaseRef
 
 _SP_URL = 'http://link.springer.com'
 
@@ -231,7 +221,7 @@ class SpringerEntry(object):
 
 # TODO: Inherit from some abstract ref class
 # I think the abstract class should only require conversion to a common standard
-class SpringerRef(object):
+class SpringerRef(BaseRef):
     """
     This is the result class of calling get_references. It contains the
     bibliographic information about the reference, as well as additional meta
@@ -278,6 +268,7 @@ class SpringerRef(object):
 
 
         """
+        super().__init__()
 
         # Reference Bibliography Section:
         #--------------------------------

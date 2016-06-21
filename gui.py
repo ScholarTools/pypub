@@ -13,9 +13,8 @@ import reference_resolver as rr
 from pypub.utils import get_truncated_display_string as td
 from error_logging import log
 
-from mendeley_errors import *
+from mendeley.errors import *
 from pypub_errors import *
-from reference_resolver_errors import *
 
 
 class Window(QWidget):

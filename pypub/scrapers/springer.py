@@ -51,7 +51,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
 from pypub_errors import *
-from pypub.scrapers.ref_object import BaseRef
+from pypub.scrapers.base_objects import *
 
 _SP_URL = 'http://link.springer.com'
 
@@ -100,7 +100,7 @@ class SpringerAuthor(object):
              'email: %s\n' % self.email
 
 
-class SpringerEntry(object):
+class SpringerEntry(BaseEntry):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper.
@@ -126,6 +126,7 @@ class SpringerEntry(object):
 
     """
     def __init__(self, soup, verbose=False):
+        super().__init__()
 
         # Get entry content information
         mainContent = soup.find('div', {'class' : 'ArticleHeader'})

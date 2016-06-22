@@ -45,7 +45,7 @@ from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 from pypub_errors import *
-from pypub.scrapers.ref_object import BaseRef
+from pypub.scrapers.base_objects import *
 
 _NT_URL = 'http://nature.com'
 
@@ -122,7 +122,7 @@ class NatureAuthor(object):
              'email: %s\n' % self.email
 
 
-class NatureEntry(object):
+class NatureEntry(BaseEntry):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper.
@@ -148,6 +148,7 @@ class NatureEntry(object):
 
     """
     def __init__(self, soup, verbose=False):
+        super().__init__()
 
         # Get entry content information
         content = soup.find('div', {'id' : 'content'})
@@ -550,6 +551,8 @@ def connect(input, isLink=False, verbose=None):
 
     if isLink:
         url = input
+    else:
+        url = 'http://dx.doi.org/' + input
 
 
     # Web page retrieval

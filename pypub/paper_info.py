@@ -30,6 +30,7 @@ class PaperInfo(BasePaperInfo):
         # Get appropriate scraper object
         if self.scraper_obj is None:
             return None
+
         mod = __import__('pypub.publishers.pub_objects', fromlist=[self.scraper_obj])
         interface_class = getattr(mod, self.scraper_obj)
         interface = interface_class()
@@ -88,7 +89,7 @@ class PaperInfo(BasePaperInfo):
     def get_pdf_link(self):
         input = self._make_input()
         if self.publisher_interface is not None:
-            pdf_link =  self.publisher_interface.get_pdf_link(input)
+            pdf_link = self.publisher_interface.get_pdf_link(input)
             self.pdf_link = pdf_link
             return pdf_link
         else:

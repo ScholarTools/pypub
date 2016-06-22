@@ -51,7 +51,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
 from pypub_errors import *
-from pypub.scrapers.ref_object import BaseRef
+from pypub.scrapers.base_objects import *
 
 
 _SD_URL = 'http://www.sciencedirect.com'
@@ -145,7 +145,7 @@ class ScienceDirectAuthor(object):
                'email: %s\n' % self.email
 
 
-class ScienceDirectEntry(object):
+class ScienceDirectEntry(BaseEntry):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper    
@@ -175,6 +175,7 @@ class ScienceDirectEntry(object):
     """
 
     def __init__(self, soup, verbose=False):
+        super().__init__()
 
         # This div and id are mobile site specific
         article_abstract = soup.find('div', id='article-abstract')

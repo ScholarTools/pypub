@@ -54,7 +54,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub_errors import *
-from pypub.scrapers.ref_object import BaseRef
+from pypub.scrapers.base_objects import BaseRef
 
 _SP_URL = ''
 

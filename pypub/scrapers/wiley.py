@@ -51,7 +51,7 @@ from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 from pypub_errors import *
-from pypub.scrapers.ref_object import BaseRef
+from pypub.scrapers.base_objects import *
 
 _WY_URL = 'http://onlinelibrary.wiley.com'
 
@@ -116,7 +116,7 @@ class WileyAuthor(object):
              'email: %s\n' % self.email
 
 
-class WileyEntry(object):
+class WileyEntry(BaseEntry):
     """
     This could be a step above the reference since it would, for example,
     contain all authors on a paper.
@@ -142,7 +142,7 @@ class WileyEntry(object):
 
     """
     def __init__(self, soup, verbose=False):
-
+        super().__init__()
         # Get entry content information
         mainContent = soup.find('div', {'id' : 'mainContent'})
         if mainContent is None:

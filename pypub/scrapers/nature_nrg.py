@@ -50,7 +50,7 @@ from pypub.scrapers.base_objects import *
 _NT_URL = 'http://nature.com'
 
 
-class NatureAuthor(object):
+class NatureAuthor(BaseAuthor):
 
     def __init__(self, li_tag):
 
@@ -71,6 +71,7 @@ class NatureAuthor(object):
         2) Split name into parts
 
         """
+        super().__init__()
 
         # Get author name
         self.name = li_tag.find('span', {'class' : 'fn'}).text

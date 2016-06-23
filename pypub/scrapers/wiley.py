@@ -55,10 +55,9 @@ from pypub.scrapers.base_objects import *
 
 _WY_URL = 'http://onlinelibrary.wiley.com'
 
-class WileyAuthor(object):
+class WileyAuthor(BaseAuthor):
 
     def __init__(self, li_tag):
-
         """
 
         Example:
@@ -82,6 +81,7 @@ class WileyAuthor(object):
         2) Split name into parts
 
         """
+        super().__init__()
 
         # Get author name
         self.name = li_tag.contents[0]

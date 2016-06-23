@@ -10,7 +10,6 @@ class BasePaperInfo(object):
 class PaperInfo(BasePaperInfo):
     def __init__(self, **kwargs):
         super().__init__()
-        self.idnum = kwargs.get('idnum')
         self.entry = kwargs.get('entry_dict')
         self.references = kwargs.get('refs_dicts')
         self.doi = kwargs.get('doi')

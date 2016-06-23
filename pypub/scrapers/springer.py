@@ -55,7 +55,7 @@ from pypub.scrapers.base_objects import *
 
 _SP_URL = 'http://link.springer.com'
 
-class SpringerAuthor(object):
+class SpringerAuthor(BaseAuthor):
 
     def __init__(self, li_tag):
 
@@ -75,6 +75,7 @@ class SpringerAuthor(object):
         2) Split name into parts
 
         """
+        super().__init__()
 
         # Get author name
         self.name = li_tag.contents[0].text

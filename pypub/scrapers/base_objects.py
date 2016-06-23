@@ -19,6 +19,28 @@ class BaseEntry(object):
         # Note that each entry in 'authors' is a separate author class
         # with self.name, self.affiliations, and self.email
 
+    def __repr__(self):
+        return u'' + \
+        '      title: %s\n' % self.title + \
+        '    authors: %s\n' % self.authors + \
+        '   keywords: %s\n' % self.keywords + \
+        'publication: %s\n' % self.publication + \
+        '       date: %s\n' % self.date + \
+        '        year %s\n' % self.year + \
+        '     volume: %s\n' % self.volume + \
+        '      issue: %s\n' % self.issue + \
+        '      pages: %s\n' % self.pages + \
+        '        doi: %s\n' % self.doi + \
+        '         url %s\n' % self.url + \
+        '    pdf_link %s\n' % self.pdf_link
+
+
+class BaseAuthor(object):
+    def __init(self):
+        self.name = None
+        self.affiliations = None
+        self.email = None
+
 
 class BaseRef(object):
     def __init__(self):
@@ -47,3 +69,23 @@ class BaseRef(object):
         self.pdf_link = None
         self.scopus_cite_count = None
         self.aps_full_text = None
+
+        # These are in Wiley
+        self.pubmed_id = None
+        self.abstract_link = None
+        self.ref_references = None
+        self.citetimes = None
+
+    def __repr__(self):
+        return u'' + \
+        '     ref_id: %s\n' % self.ref_id + \
+        '      title: %s\n' % self.title + \
+        '    authors: %s\n' % self.authors + \
+        'publication: %s\n' % self.publication + \
+        '     volume: %s\n' % self.volume + \
+        '      issue: %s\n' % self.issue + \
+        '     series: %s\n' % self.series + \
+        '       date: %s\n' % self.date + \
+        '      pages: %s\n' % self.pages + \
+        '        doi: %s\n' % self.doi + \
+        '        pii: %s\n' % self.pii

@@ -57,7 +57,7 @@ from pypub.scrapers.base_objects import *
 _SD_URL = 'http://www.sciencedirect.com'
 
 
-class ScienceDirectAuthor(object):
+class ScienceDirectAuthor(BaseAuthor):
     def __init__(self, li_tag):
         """
         
@@ -83,6 +83,8 @@ class ScienceDirectAuthor(object):
         #
         # class="author-affiliations" id="augrp0010"
         #   class="affiliation" id="aff1"        
+
+        super().__init__()
 
         # 1st bit of text is the name, then we have
         self.name = li_tag.contents[0]

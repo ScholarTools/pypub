@@ -103,10 +103,10 @@ class ScienceDirectAuthor(BaseAuthor):
         # corresponding to the affiliation list indices.
 
 
-        super = li_tag.find_all('sup')
+        sup = li_tag.find_all('sup')
 
-        supers = []
-        for x in super:
+        sups = []
+        for x in sup:
             # Get text of superscripts
             text = x.text
 
@@ -124,9 +124,9 @@ class ScienceDirectAuthor(BaseAuthor):
             splitlist = text.split(',')
             for num in splitlist:
                 if num != '':
-                    supers.append(num)
+                    sups.append(num)
 
-        self.supers = supers
+        self.sups = sups
 
 
         contact = li_tag.find('a', {'class': 'icon-email-author'})
@@ -137,7 +137,7 @@ class ScienceDirectAuthor(BaseAuthor):
             self.email = self.email[8:]  # to get rid of leading 'mailto:'
 
     def populate_affiliations(self, aff_dict):
-        self.affiliations = [aff_dict[x] for x in self.supers]
+        self.affiliations = [aff_dict[x] for x in self.sups]
 
     def __repr__(self):
         return u'' + \

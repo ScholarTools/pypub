@@ -9,10 +9,6 @@ Status: In progress
 #TODO: Add tests, this stuff will break!
 #TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
 
-#TODO: STANDARDIZE THE FUNCTION INPUTS!!!
-     - Either get references and get entry info both using a URL as the input, or
-       both using a DOI/PII as an input. Different inputs for each is confusing.
-
 Tasks/Examples:
 ---------------
 1) ****** Get references given a doi value *******
@@ -56,6 +52,7 @@ from pypub.utils import findValue
 from pypub_errors import *
 from pypub.scrapers.base_objects import BaseRef
 
+# TODO: Fill this out
 _SP_URL = ''
 
 class Author(object):
@@ -95,6 +92,9 @@ class Author(object):
         if link is not None:
             self.email = link['href'][7:]  # Extract email link and remove 'mailto:' from beginning
 
+    def populate_affiliations(self, aff_labels):
+        self.affiliations = [aff_labels[int(x)-1] for x in self.superscripts]
+        
     def __repr__(self):
         return u'' + \
                 'name: %s\n' % self.raw + \
@@ -136,7 +136,7 @@ class Entry(object):
 
 
         # Metadata:
-        #---------------
+        # --------------
         self.title = findValue(mainContent, 'h1', 'ArticleTitle', 'class').title()
 
         self.publication = findValue(mainContent, 'span', 'JournalTitle', 'class')
@@ -161,7 +161,7 @@ class Entry(object):
 
 
         # DOI Retrieval:
-        #---------------
+        # --------------
         # This might be more reliable than assuming we have the DOI in the title
         self.doi = findValue(mainContent, 'p', 'article-doi', 'class')
         doi_startindex = self.doi.find('10.')
@@ -169,7 +169,7 @@ class Entry(object):
 
 
         # Authors:
-        #---------
+        # --------
         # Find list items within the ordered list with id 'authors'
         # Need to find only classless li's so that it doesn't also retrieve the child li's corresponding
         # to author affiliations at this stage.
@@ -252,15 +252,9 @@ class SpringerRef(BaseRef):
         self.ref_tags = ref_tags
 
         # Reference Bibliography Section:
-        #--------------------------------
+        # --------------------------------
         self.ref_id = ref_id + 1 # Input is 0 indexed
 
-        # SpringerList has the entire citation in plaintext in one <div> tag.
-        # Annoying. Uhhhh... let's just grab all of it at once for now and parse it later.
-
-        self.citation = findValue(ref_tags, 'div', 'CitationContent', 'class')
-
-        '''
         self.title = findValue(ref_tags, 'span', 'articleTitle', 'class')
         authorlist = ref_tags.find_all('span', 'author', 'class')
         self.authors = [x.text for x in authorlist]
@@ -273,10 +267,9 @@ class SpringerRef(BaseRef):
         lastp = findValue(ref_tags, 'span', 'pageLast', 'class')
         if (firstp is not None) and (lastp is not None):
             self.pages = firstp + '-' + lastp
-        '''
 
         # Reference Meta Section:
-        #------------------------------
+        # ------------------------------
 
         self.crossref = None
         self.pubmed = None
@@ -307,7 +300,6 @@ class SpringerRef(BaseRef):
                 elif 'OccurrencePMCID' in link['class']:
                     self.pubmed_central = href
 
-    '''
     def __repr__(self):
         return u'' + \
         '                    ref_id: %s\n' % self.ref_id + \
@@ -326,17 +318,6 @@ class SpringerRef(BaseRef):
         '                  pdf_link: %s\n' % self.pdf_link + \
         '                       doi: %s\n' % self.doi + \
         'web of science times cited: %s\n' % self.citetimes
-    '''
-
-    def __repr__(self):
-        return u'' + \
-        '                    ref_id: %s\n' % self.ref_id + \
-        '                  citation: %s\n' % self.citation + \
-        '             crossref_link: %s\n' % self.crossref + \
-        '                    pubmed: %s\n' % self.pubmed + \
-        '            pubmed_central: %s\n' % self.pubmed_central + \
-        '                       doi: %s\n' % self.doi
-
 
 
 def get_references(input, verbose=False):
@@ -350,33 +331,17 @@ def get_references(input, verbose=False):
 
     """
 
-    # TODO: Make this a class reference parser
-
-    # If you view the references, they should be wrapped by a <ol> tag
-    # with the attribute class="BibliographyWrapper"
-    REFERENCE_SECTION_TAG =  ('ol', {'class' : 'BibliographyWrapper'})
-
-    # TODO: check what this guest tag actually looks like
-    # When we don't have proper access rights, this is present in the html
-    GUEST_TAG = ('li', {'id' : 'menuGuest'})
-
-    # Entries are "li" tags with ids of the form:
-    #   b1, b2, b3, etc.
-    # Hopefully this doesn't grab other random list items on the page
-    REFERENCE_TAG = ('li', {'class' : 'Citation'})
-
-
     # Step 1 - Make the request
-    #--------------------------------------------------------------------------
-    soup = make_soup(input, 'references', verbose)
+    # --------------------------------------------------------------------------
+    soup = _make_soup(input, 'references', verbose)
 
     # Step 2 - Get the references tags
-    #--------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     # The reference tags contain most of the information about references
     # They are however missing a lot of the linking information
     # e.g. link to the article, pdf download, etc
 
-    reference_section = soup.find(*REFERENCE_SECTION_TAG)
+    reference_section = soup.find('ol', {'class' : 'BibliographyWrapper'})
 
     if reference_section is None:
         # Then we might be a guest. In other words, we might not have sufficient
@@ -384,23 +349,24 @@ def get_references(input, verbose=False):
         # IP mask. When I'm working from home I need to VPN into work so
         # that I can access the data :/
         print("reference_section is None")
-        temp = soup.find(*GUEST_TAG)
+        # TODO: check what this guest tag actually looks like
+        # When we don't have proper access rights, this is present in the html
+        temp = soup.find('li', {'id' : 'menuGuest'})
         if temp is None:
             #We might have no references ... (Doubtful)
-            raise ParseException("References were not found ..., code error likely")
+            raise ParseException("References were not found... code error likely")
         else:
             raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
-    ref_tags = reference_section.find_all(*REFERENCE_TAG)
+    ref_tags = reference_section.find_all('li', {'class' : 'Citation'})
 
     n_refs = len(ref_tags)
 
     if n_refs == 0:
         return None
 
-
     # Step 3 - Create reference objects
-    #--------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     # The reference objects parse out information for each reference
     # as well as external links.
     if verbose:
@@ -411,43 +377,54 @@ def get_references(input, verbose=False):
 
 
     #All done!
-    #---------
+    # ---------
     return ref_objects
 
 
 def get_entry_info(input, verbose=False):
-    soup = make_soup(input, 'entry', verbose)
+    soup = _make_soup(input, 'entry', verbose)
     return SpringerEntry(soup, verbose)
 
-def make_soup(input, type, verbose=False):
+
+def get_pdf_link(input, verbose=False, soup=None):
+    if soup is None:
+        soup = _make_soup(input, verbose)
+
+    dropdown = soup.find('div', {'class' : 'button-dropdown--linkgroup'})
+    pdf_link = dropdown.find('a', {'title' : 'Download this article in PDF format'})['href']
+    return pdf_link
+
+
+def _make_soup(input, type, verbose=False):
     # Check if the input is a DOI or URL
-    if is_url(input):
-        doi = extract_doi(input)
-    elif is_doi(input):
+    if _is_url(input):
+        doi = _extract_doi(input)
+    elif _is_doi(input):
         doi = input
     else:
         raise ValueError('Input not recognized as a valid DOI or SpringerLink URL')
 
     # Web page retrieval
     #-------------------
-    soup = connect(doi, type, verbose)
+    soup = _connect(doi, type, verbose)
     return soup
 
 
-def is_url(input):
+def _is_url(input):
     if input.find('springer') != -1:
         return True
     else:
         return False
 
-def is_doi(input):
+
+def _is_doi(input):
     if input.find('10.') == 0:
         return True
     else:
         return False
 
 
-def extract_doi(url):
+def _extract_doi(url):
 
     # DOI is used in SpringerLink URLs after '/article/', i.e.
     # http://link.springer.com/article/10.1186/s12984-016-0150-9
@@ -458,13 +435,13 @@ def extract_doi(url):
     return doi
 
 
-def connect(doi, type, verbose=None):
+def _connect(doi, type, verbose=None):
 
     # Construct valid SpringerLink URL from given DOI
     url = _SP_URL + '/article/' + doi
 
     # Web page retrieval
-    #-------------------
+    # -------------------
     s = requests.Session()
 
     if verbose:

@@ -52,33 +52,26 @@ class Publisher:
         return self.scraper.get_pdf_link(doi_or_url)
 
 
-class Wiley(Publisher):
+class NatureNRG(Publisher):
     def __init__(self):
         super().__init__()
 
         # Import the appropriate scraper and set it as self.scraper
-        import pypub.scrapers.wiley as wy
-        self.scraper = wy
+        import pypub.scrapers.nature_nrg as nt_nrg
+        self.scraper = nt_nrg
 
-    def get_pdf_content(self, file_url=None, doi_or_url=None):
+    def get_pdf_content(self, pdf_url=None, doi_or_url=None):
+        # This one is nice because it doesn't return HTML.
         if doi_or_url is None and self.doi_or_url is not None:
             doi_or_url = self.doi_or_url
 
-        if file_url is None:
+        if pdf_url is None:
             if doi_or_url is None:
                 raise InputError('get_pdf_content() requires a DOI or URL')
             else:
-                file_url = self.get_pdf_link(doi_or_url)
-
-        # Change file URL ending from /epdf to /pdf
-        if file_url.find('/epdf') != -1:
-            file_url = file_url.replace('/epdf', '/pdf')
-
-        resp = requests.get(file_url)
-        soup_tag = ('iframe', {'id' : 'pdfDocument'})
-        link_loc = 'src'
-
-        return _extract_content(resp, soup_tag, link_loc)
+                pdf_url = self.get_pdf_link(doi_or_url)
+        resp = requests.get(pdf_url)
+        return resp.content
 
 
 class ScienceDirect(Publisher):
@@ -106,17 +99,17 @@ class ScienceDirect(Publisher):
             doi_or_url = self._doi_to_link(doi_or_url)
         return self.scraper.get_pdf_link(doi_or_url)
 
-    def get_pdf_content(self, file_url=None, doi_or_url=None):
+    def get_pdf_content(self, pdf_url=None, doi_or_url=None):
         if doi_or_url is None and self.doi_or_url is not None:
             doi_or_url = self.doi_or_url
 
-        if file_url is None:
+        if pdf_url is None:
             if doi_or_url is None:
                 raise InputError('get_pdf_content() requires a DOI or URL')
             else:
-                file_url = self.get_pdf_link(doi_or_url)
+                pdf_url = self.get_pdf_link(doi_or_url)
 
-        resp = requests.get(file_url)
+        resp = requests.get(pdf_url)
         soup_tag = ('a', {'id' : 'pdfLink'})
         link_loc = 'src'
 
@@ -135,17 +128,17 @@ class Springer(Publisher):
         import pypub.scrapers.springer as sp
         self.scraper = sp
 
-    def get_pdf_content(self, file_url=None, doi_or_url=None):
+    def get_pdf_content(self, pdf_url=None, doi_or_url=None):
         if doi_or_url is None and self.doi_or_url is not None:
             doi_or_url = self.doi_or_url
 
-        if file_url is None:
+        if pdf_url is None:
             if doi_or_url is None:
                 raise InputError('get_pdf_content() requires a DOI or URL')
             else:
-                file_url = self.get_pdf_link(doi_or_url)
+                pdf_url = self.get_pdf_link(doi_or_url)
 
-        resp = requests.get(file_url)
+        resp = requests.get(pdf_url)
 
         if hasattr(resp, 'headers'):
             if 'text/html' in resp.headers['Content-Type']:
@@ -161,26 +154,56 @@ class Springer(Publisher):
             raise LookupError('Could not get headers from web response.')
 
 
-class NatureNRG(Publisher):
+class TaylorFrancis(Publisher):
     def __init__(self):
         super().__init__()
 
         # Import the appropriate scraper and set it as self.scraper
-        import pypub.scrapers.nature_nrg as nt_nrg
-        self.scraper = nt_nrg
+        import pypub.scrapers.taylorfrancis as tf
+        self.scraper = tf
 
-    def get_pdf_content(self, file_url=None, doi_or_url=None):
-        # This one is nice because it doesn't return HTML.
+    def get_pdf_content(self, pdf_url=None, doi_or_url=None):
         if doi_or_url is None and self.doi_or_url is not None:
             doi_or_url = self.doi_or_url
 
-        if file_url is None:
+        if pdf_url is None:
             if doi_or_url is None:
                 raise InputError('get_pdf_content() requires a DOI or URL')
             else:
-                file_url = self.get_pdf_link(doi_or_url)
-        resp = requests.get(file_url)
+                pdf_url = self.get_pdf_link(doi_or_url)
+
+        resp = requests.get(pdf_url)
+
         return resp.content
+
+
+class Wiley(Publisher):
+    def __init__(self):
+        super().__init__()
+
+        # Import the appropriate scraper and set it as self.scraper
+        import pypub.scrapers.wiley as wy
+        self.scraper = wy
+
+    def get_pdf_content(self, pdf_url=None, doi_or_url=None):
+        if doi_or_url is None and self.doi_or_url is not None:
+            doi_or_url = self.doi_or_url
+
+        if pdf_url is None:
+            if doi_or_url is None:
+                raise InputError('get_pdf_content() requires a DOI or URL')
+            else:
+                pdf_url = self.get_pdf_link(doi_or_url)
+
+        # Change file URL ending from /epdf to /pdf
+        if pdf_url.find('/epdf') != -1:
+            pdf_url = pdf_url.replace('/epdf', '/pdf')
+
+        resp = requests.get(pdf_url)
+        soup_tag = ('iframe', {'id' : 'pdfDocument'})
+        link_loc = 'src'
+
+        return _extract_content(resp, soup_tag, link_loc)
 
 
 def _extract_content(resp, soup_tag, link_location):

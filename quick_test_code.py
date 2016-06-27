@@ -13,7 +13,7 @@ packages that people might be interested in.
 
 
 #Pubmed
-#===================================================== 
+# =====================================================
 if False: 
     from pypub import pubmed as pm
     
@@ -57,8 +57,8 @@ el.parse_raw_references(raw_refs)
 
 
 # Science Direct
-#=====================================================
-
+# =====================================================
+'''
 from pypub.scrapers import sciencedirect as sd
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
@@ -78,9 +78,10 @@ print(refs[0])
 
 import pdb
 pdb.set_trace()
+'''
 
 # Wiley
-#=====================================================
+# =====================================================
 '''
 from pypub.scrapers import wiley as wy
 
@@ -122,7 +123,7 @@ print(pdf_link)
 
 
 # Springer
-#=====================================================
+# =====================================================
 '''
 from pypub.scrapers import springer as sp
 
@@ -148,7 +149,7 @@ print(json.dumps(refs[0]))
 '''
 
 # Nature
-#=====================================================
+# =====================================================
 '''
 from pypub.scrapers import nature_nrg as nt_nrg
 
@@ -167,6 +168,43 @@ print(len(refs))
 #nature_pdf_link = nt.get_pdf_link(nt_link)
 #print(nature_pdf_link)
 '''
+
+
+# Taylor and Francis
+# =====================================================
+from pypub.scrapers import taylorfrancis as tf
+
+# This link is for the paper without full access
+tf_link = 'http://www.tandfonline.com/doi/full/10.1080/2326263X.2015.1134958'
+tf_doi = '10.1080/2326263X.2015.1134958'
+
+# This link is for the open access paper
+tf_link = 'http://www.tandfonline.com/doi/full/10.1080/21624054.2016.1184390'
+tf_doi = '10.1080/21624054.2016.1184390'
+
+entry = tf.get_entry_info(tf_link, verbose=True)
+print(entry)
+
+refs = tf.get_references(tf_link)
+print(refs[0])
+print(len(refs))
+
+pdf_link = tf.get_pdf_link(tf_link)
+
+from pypub.publishers.pub_objects import TaylorFrancis as TF
+TFran = TF()
+pdf_content = TFran.get_pdf_content(pdf_url=pdf_link)
+
+import pdb
+pdb.set_trace()
+
+
+
+
+
+
+
+
 
 
 """

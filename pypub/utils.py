@@ -55,7 +55,7 @@ def find_nth(string, target, n):
     return start
 
 
-def findValue(tags, tag_name, label_name, label_type):
+def findValue(tags, tag_name, label_name=None, label_type=None):
         """
         This is a small helper that is used to pull out values from a tag
         given the value of the tags class or id attribute. See the example.
@@ -79,7 +79,10 @@ def findValue(tags, tag_name, label_name, label_type):
         findValue('span', 'class', 'r_publication')
 
         """
-        temp = tags.find(tag_name, {'%s' % label_type: label_name})
+        if label_name is None or label_type is None:
+            temp = tags.find(tag_name)
+        else:
+            temp = tags.find(tag_name, {'%s' % label_type: label_name})
 
         if temp is None:
             return None

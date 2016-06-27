@@ -5,3 +5,4 @@ sp,http://link.springer.com,n,,one_page,n,n,y,n,/article/,,,"'div', {'class' : '
 ,http://ac.els-cdn.com,,,,,,,,,,,,,,ScienceDirect
 ,http://download.springer.com,,,,,,,,,,,,,,Springer
 nt_nrg,http://nature.com/nrg,n,,one_page,n,,,,,,,,,nature_nrg,NatureNRG
+tf,http://tandfonline.com,n,,one_page,n,y,y,,/doi/full/,,,"'div', {'id' : 'journal_content'}","'ul', {'class' : 'references'}",taylorfrancis,TaylorFrancis

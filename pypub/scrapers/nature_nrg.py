@@ -83,10 +83,10 @@ class NatureAuthor(BaseAuthor):
         # For some reason, the superscripts aren't actually visible
         # on the Nature site. But they exist in the HTML.
 
-        super = li_tag.find_all('sup')
+        sup = li_tag.find_all('sup')
 
-        supers = []
-        for x in super:
+        sups = []
+        for x in sup:
             # Get text of superscripts
             text = x.text
 
@@ -106,15 +106,15 @@ class NatureAuthor(BaseAuthor):
             splitlist = text.split(',')
             for num in splitlist:
                 if num != '':
-                    supers.append(num)
+                    sups.append(num)
 
-        self.supers = supers
+        self.supers = sups
         #self.affiliations = []
         self.email = None
 
     #
     def populate_affiliations(self,aff_labels):
-        self.affiliations = [aff_labels[int(x)-1] for x in self.supers]
+        self.affiliations = [aff_labels[int(x)-1] for x in self.sups]
 
     def __repr__(self):
         return u'' + \

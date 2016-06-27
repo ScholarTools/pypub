@@ -86,24 +86,23 @@ class WileyAuthor(BaseAuthor):
         # Get author name
         self.name = li_tag.contents[0]
 
-
+        self.contact = None
+        self.superscripts = []
+        self.email = None
 
         # Extract all integers from the superscripted text
         # This way each author object has a list of superscripts
         # corresponding to the affiliation list indices.
-        super = li_tag.find('sup')
-        if super is not None:
-            super = super.text
-            self.superscripts = re.findall(r'\d+', super)
+        sup = li_tag.find('sup')
 
-            if super.find('*') != -1:
+        if sup is not None:
+            sup = sup.text
+            self.superscripts = re.findall(r'\d+', sup)
+
+            if sup.find('*') != -1:
                 self.contact = 1
             else:
                 self.contact = None
-        else:
-            self.contact = None
-            self.superscripts = []
-        self.email = None
 
     #
     def populate_affiliations(self,aff_labels):

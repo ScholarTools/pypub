@@ -137,7 +137,6 @@ class TaylorFrancisEntry(BaseEntry):
         if mainContent is None:
             raise ParseException('Unable to find main content of page')
 
-
         # Metadata:
         # ---------
         titlebox = mainContent.find('div', {'class' : 'description'})

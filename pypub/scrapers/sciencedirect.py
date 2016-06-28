@@ -548,9 +548,6 @@ def get_references(input, verbose=False):
     
     """
 
-    # TODO: Move this to ScienceDirectEntry - I'm thinking of making this its own
-    # class as well
-    #
     # TODO: Make this a class reference parser
 
     # *** These tags are mobile-site specific
@@ -596,7 +593,10 @@ def get_references(input, verbose=False):
     # e.g. link to the article, pdf download, etc
     soup = BeautifulSoup(r.text)
 
-    reference_section = soup.find(*REFERENCE_SECTION_TAG_TUPLE)
+    reference_section = soup.find("ol", {"class": "article-references"})
+
+    import pdb
+    pdb.set_trace()
 
     if reference_section is None:
         # Then we might be a guest. In other words, we might not have sufficient
@@ -792,15 +792,13 @@ def get_all_info(input, verbose=False):
 
 
 def make_soup(input, verbose=False):
-    # Check if the input is a DOI or URL
+    # Check if the input is a PII or URL, and
+    # use appropriate argument in web page retrieval
     if is_url(input):
-        pii = extract_pii(input)
+        soup = connect(url=input, verbose=verbose)
     else:
-        pii = input
+        soup = connect(pii=input, verbose=verbose)
 
-    # Web page retrieval
-    # -------------------
-    soup = connect(pii, verbose)
     return soup
 
 
@@ -816,15 +814,21 @@ def extract_pii(url):
     # Get everything between 'sciencedirect.com/science/article/pii/' and the URL ending
     # pii = re.findall('pii/(.*?)', url, re.DOTALL)
 
-    # We're grabbing everything after the last '/'
-    pii = re.search('[^pii/]+$', url).group(0)
+    # We're grabbing everything after 'pii/'
+    pii_index = url.find('pii/')
+    pii = url[pii_index+4:]
 
     return pii
 
 
-def connect(pii, verbose=None):
+def connect(pii=None, url=None, verbose=None):
     # Construct valid ScienceDirect URL from given DOI
-    url = _SD_URL + '/science/article/pii/' + pii
+    if pii is not None:
+        article_url = _SD_URL + '/science/article/pii/' + pii
+    elif url is not None:
+        article_url = url
+    else:
+        raise LookupError('Need a valid PII or ScienceDirect URL')
 
     # Web page retrieval
     # -------------------
@@ -836,11 +840,19 @@ def connect(pii, verbose=None):
     # Using the mobile version of ScienceDirect
     # This is to avoid dynamically loading page features on the desktop site
     # and because the mobile site has more cleanly organized information
-    r = s.get(url, cookies={'Site': 'Mobile'})
+    resp = s.get(article_url, cookies={'Site': 'Mobile'})
 
-    #with open('sd_test.html', 'wb') as file:
-    #    file.write(r.content)
+    '''
+    if not resp.ok:
+        if resp.status_code == 404:
+            raise ConnectionError('Could not locate page info - 404 Error')
+        else:
+            raise ConnectionError('Could not connect to article page.')
+    '''
 
-    soup = BeautifulSoup(r.text)
+    with open('sd_test.html', 'wb') as file:
+        file.write(resp.content)
+
+    soup = BeautifulSoup(resp.text)
 
     return soup

@@ -93,3 +93,12 @@ class PaperInfo(BasePaperInfo):
             return pdf_link
         else:
             return None
+
+    def __repr__(self):
+        return '' + \
+            'title: %s\n' % self.entry.get('title') + \
+            'authors: %s\n' % self.entry.get('authors') + \
+            'doi: %s\n' % self.doi + \
+            'url: %s\n' % self.url + \
+            'scraper_obj: %s\n' % self.scraper_obj
+

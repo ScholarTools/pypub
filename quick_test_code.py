@@ -58,7 +58,7 @@ el.parse_raw_references(raw_refs)
 
 # Science Direct
 # =====================================================
-'''
+
 from pypub.scrapers import sciencedirect as sd
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
@@ -70,15 +70,14 @@ sd_link = 'http://www.sciencedirect.com/science/article/pii/S0012160613006453'
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/S0006349513006176'
 
+sd_link = 'http://www.sciencedirect.com/science/article/pii/S0304399100000760'
+
 entry = sd.get_entry_info(sd_link, verbose=True)
 print(entry)
 
 refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])
 
-import pdb
-pdb.set_trace()
-'''
 
 # Wiley
 # =====================================================
@@ -172,6 +171,7 @@ print(len(refs))
 
 # Taylor and Francis
 # =====================================================
+'''
 from pypub.scrapers import taylorfrancis as tf
 
 # This link is for the paper without full access
@@ -197,7 +197,7 @@ pdf_content = TFran.get_pdf_content(pdf_url=pdf_link)
 
 import pdb
 pdb.set_trace()
-
+'''
 
 
 

@@ -1,5 +1,4 @@
 {
-  "sd_test.py::test_reflist_type": true,
   "sd_test.py::test_sd_saved_entry": true,
   "sd_test.py::test_sd_saved_refs": true,
   "springer_test.py::test_springer_saved_entry": true,

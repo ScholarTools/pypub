@@ -210,7 +210,9 @@ def _extract_content(resp, soup_tag, link_location):
     if hasattr(resp, 'headers'):
         if 'text/html' in resp.headers['Content-Type']:
             soup = BeautifulSoup(resp.text)
-            pdf_link = soup.find(soup_tag)[link_location]
+            pdf_link = soup.find(soup_tag).get(link_location)
+            if pdf_link is None:
+                raise LookupError('Could not find pdf link')
             resp2 = requests.get(pdf_link)
             return resp2.content
         elif 'application/pdf' in resp.headers['Content-Type']:

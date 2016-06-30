@@ -10,6 +10,8 @@ class BaseEntry(object):
         self.keywords = None
         self.doi = None
         self.doi_prefix = None
+        self.pii = None
+        self.eid = None
         self.abstract = None
         self.authors = None
         self.affiliations = None
@@ -22,7 +24,7 @@ class BaseEntry(object):
     def __repr__(self):
         return u'' + \
         '      title: %s\n' % self.title + \
-        '    authors: %s\n' % self.authors + \
+        '    authors: %s\n' % [x.name for x in self.authors] + \
         '   keywords: %s\n' % self.keywords + \
         'publication: %s\n' % self.publication + \
         '       date: %s\n' % self.date + \
@@ -53,6 +55,7 @@ class BaseRef(object):
         self.issue = None
         self.series = None
         self.date = None
+        self.year = None
         self.pages = None
         self.doi = None
         self.pii = None
@@ -75,6 +78,9 @@ class BaseRef(object):
         self.abstract_link = None
         self.ref_references = None
         self.citetimes = None
+
+    def get(self, attr):
+        return getattr(self, attr)
 
     def __repr__(self):
         return u'' + \

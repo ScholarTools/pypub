@@ -36,8 +36,10 @@ import re
 PY2 = sys.version_info.major == 2
 
 if PY2:
+    from urllib import quote as urllib_quote
     from urllib import unquote as urllib_unquote
 else:
+    from urllib.parse import quote as urllib_quote
     from urllib.parse import unquote as urllib_unquote
 # -----------------------------------------------------
 
@@ -128,13 +130,13 @@ class ScienceDirectAuthor(BaseAuthor):
 
         self.sups = sups
 
-
         contact = li_tag.find('a', {'class': 'icon-email-author'})
         if contact == None:
             self.email = None
         else:
             self.email = contact['href']
-            self.email = self.email[8:]  # to get rid of leading 'mailto:'
+            self.email = self.email.replace('mailto:', '')  # Get rid of leading 'mailto: '
+            self.email = self.email.strip()
 
     def populate_affiliations(self, aff_dict):
         self.affiliations = [aff_dict[x] for x in self.sups]
@@ -143,7 +145,6 @@ class ScienceDirectAuthor(BaseAuthor):
         return u'' + \
                'name: %s, ' % self.name + \
                'affiliations: %s\n' % self.affiliations + \
-               'aff type: %s\n' % str(type(self.affiliations)) + \
                'email: %s\n' % self.email
 
 
@@ -228,22 +229,27 @@ class ScienceDirectEntry(BaseEntry):
         # TODO: Can move compiling to initialization
         self.authors = [ScienceDirectAuthor(x) for x in article_abstract.find_all('li', class_=re.compile('^author'))]
 
-        aff_tags = article_abstract.find_all('li', class_='affiliation label')
+        aff_tags = article_abstract.find_all('li', {'class' : 'affiliation'})
 
-        # ScienceDirect uses letter superscripts for author affiliations rather than numbers, making them
-        # annoying to index. This takes the footnote-style list of affiliated institutions and makes a
-        # dict with the superscript letters as keys.
-        superscripts = []
-        aff_names = []
-        for x in aff_tags:
-            superscripts.append(x.find('span').text)
-            aff_names.append(str(x.contents[1]))
+        if len(aff_tags) != 1:
+            # ScienceDirect uses letter superscripts for author affiliations rather than numbers, making them
+            # annoying to index. This takes the footnote-style list of affiliated institutions and makes a
+            # dict with the superscript letters as keys.
+            superscripts = []
+            aff_names = []
+            for x in aff_tags:
+                superscripts.append(x.find('span').text)
+                aff_names.append(str(x.contents[1]))
 
-        aff_dict = dict(zip(superscripts, aff_names))
+            aff_dict = dict(zip(superscripts, aff_names))
 
-        # For each author, the aff_dict is used to assign the appropriate affiliation(s) to the author
-        for author in self.authors:
-            author.populate_affiliations(aff_dict)
+            # For each author, the aff_dict is used to assign the appropriate affiliation(s) to the author
+            for author in self.authors:
+                author.populate_affiliations(aff_dict)
+        else:
+            # If there is only one affiliation listed, all authors share that affiliation
+            for author in self.authors:
+                author.affiliations = aff_tags[0].text
 
         keyword_tags = article_abstract.find_all('li', {'class': 'article-keyword'})
         self.keywords = [x.text for x in keyword_tags]
@@ -318,7 +324,7 @@ class ScienceDirectRef(BaseRef):
     
     """
 
-    def __init__(self, ref_tags, ref_link_info, ref_id):
+    def __init__(self, ref_tags, ref_id, ref_link_info=None):
         """
      
         Parameters:
@@ -382,13 +388,6 @@ class ScienceDirectRef(BaseRef):
 
         # Reference Meta Section:
         # -----------------------
-        link_soup = BeautifulSoup(ref_link_info)
-
-        # Each section is contained a div tag with the class boxLink, although
-        # some classes have more text in the class attribute, thus the *)
-        #box_links = link_soup.find_all('div', {'class': re.compile('boxLink*')})
-        box_links = link_soup.find_all('div', {'class' : 'boxLink'})
-
         self.scopus_link = None
         self.doi = None
         self._data_sceid = None
@@ -397,52 +396,60 @@ class ScienceDirectRef(BaseRef):
         self.scopus_cite_count = None
         self.aps_full_text = None
 
-        # This code is a bit hard to read but each 'if statement' shows what
-        # is needed in order to resolve the item.
-        for box_link in box_links:
-            div_class_values = box_link.attrs['class']
-            link_tag = box_link.find('a')
-            if 'SC_record' in div_class_values:
-                # "View Record in Scopus"
-                # They changed to returning a full link
-                # I should really use a library to resolve based on both
-                # although the input should be the current page, not the base
-                # self.scopus_link = _SD_URL + link_tag.attrs['href']
-                self.scopus_link = link_tag.attrs['href']
-            elif 'class' in link_tag.attrs and 'S_C_pdfLink' in link_tag.attrs['class']:
-                    # Link to PDF
-                    self.pdf_link = _SD_URL + link_tag.attrs['href']
-            elif 'class' in link_tag.attrs and 'cLink' in link_tag.attrs['class']:
-                    # Article Link
+        if ref_link_info is not None:
+            link_soup = BeautifulSoup(ref_link_info)
+
+            # Each section is contained a div tag with the class boxLink, although
+            # some classes have more text in the class attribute, thus the *)
+            #box_links = link_soup.find_all('div', {'class': re.compile('boxLink*')})
+            box_links = link_soup.find_all('div', {'class' : 'boxLink'})
+
+            # This code is a bit hard to read but each 'if statement' shows what
+            # is needed in order to resolve the item.
+            for box_link in box_links:
+                div_class_values = box_link.attrs['class']
+                link_tag = box_link.find('a')
+                if 'SC_record' in div_class_values:
+                    # "View Record in Scopus"
+                    # They changed to returning a full link
+                    # I should really use a library to resolve based on both
+                    # although the input should be the current page, not the base
+                    # self.scopus_link = _SD_URL + link_tag.attrs['href']
+                    self.scopus_link = link_tag.attrs['href']
+                elif 'class' in link_tag.attrs and 'S_C_pdfLink' in link_tag.attrs['class']:
+                        # Link to PDF
+                        self.pdf_link = _SD_URL + link_tag.attrs['href']
+                elif 'class' in link_tag.attrs and 'cLink' in link_tag.attrs['class']:
+                        # Article Link
+                        temp = link_tag.attrs['href']
+                        match = re.search('/pii/(.*)', temp)
+                        self.pii = match.group(1)
+                        self.doi = self.doi_from_crossref(self.pii)
+                elif 'CrossRef' in box_link.text:
+                    # CrossRef link provides DOI as href
+                    # In old code it was a query parameter but this
+                    # has now moved to a "data-url" attribute
                     temp = link_tag.attrs['href']
-                    match = re.search('/pii/(.*)', temp)
-                    self.pii = match.group(1)
-                    self.doi = self.doi_from_crossref(self.pii)
-            elif 'CrossRef' in box_link.text:
-                # CrossRef link provides DOI as href
-                # In old code it was a query parameter but this
-                # has now moved to a "data-url" attribute
-                temp = link_tag.attrs['href']
-                # http://dx.doi.org/10.1037%2Fh0075243
-                match = re.search('dx\.doi\.org/(.*)', temp)
-                # Unquote removes %xx escape characters
-                self.doi = urllib_unquote(match.group(1))
-            elif "Purchase" in box_link.text:
-                # New link added to Purchase pdf. It was throwing errors
-                pass
-            elif 'aps full text' in box_link.text.lower():
-                self.aps_full_text = link_tag.attrs['href']
-            else:
-                span_tag = link_tag.find('span')
-                if 'citedBy_' in span_tag.attrs['class']:
-                    # Cited By Scopus Count
-                    #
-                    # NOTE: Apparently the citedByScopus doesn't get added
-                    # until later so we need to look for the scan tag. Let's
-                    # do this only if all else fails.
-                    self._data_sceid = span_tag.attrs['data-sceid']
+                    # http://dx.doi.org/10.1037%2Fh0075243
+                    match = re.search('dx\.doi\.org/(.*)', temp)
+                    # Unquote removes %xx escape characters
+                    self.doi = urllib_unquote(match.group(1))
+                elif "Purchase" in box_link.text:
+                    # New link added to Purchase pdf. It was throwing errors
+                    pass
+                elif 'aps full text' in box_link.text.lower():
+                    self.aps_full_text = link_tag.attrs['href']
                 else:
-                    raise Exception('Failed to match link')
+                    span_tag = link_tag.find('span')
+                    if 'citedBy_' in span_tag.attrs['class']:
+                        # Cited By Scopus Count
+                        #
+                        # NOTE: Apparently the citedByScopus doesn't get added
+                        # until later so we need to look for the scan tag. Let's
+                        # do this only if all else fails.
+                        self._data_sceid = span_tag.attrs['data-sceid']
+                    else:
+                        raise Exception('Failed to match link')
 
         # Finally, update if it is not an article
         tag_class = ref_tags.get('class')[0]
@@ -552,10 +559,6 @@ def get_references(input, verbose=False):
 
     # *** These tags are mobile-site specific
 
-    # If you view the references, they should be wrapped by an <ol> tag
-    # with the attribute class="article-references"
-    REFERENCE_SECTION_TAG_TUPLE = ("ol", {"class": "article-references"})
-
     # When we don't have proper access rights, this is present in the html
     GUEST_TAG_TUPLE = ("li", {"id": "menuGuest"})
 
@@ -573,30 +576,23 @@ def get_references(input, verbose=False):
     # resolveReferences
     REF_RESOLVER_URL = _SD_URL + '/science/referenceResolution/ajaxRefResol'
 
-    # Step 1 - Make the request
-    # --------------------------------------------------------------------------
-    if is_url(input):
-        pii = extract_pii(input)
+    # Return the BeautifulSoup result, the requests session, and the requests response
+    if _is_url(input):
+        pii = _extract_pii(input)
     else:
         pii = input
 
-    s = requests.Session()
+    sess = requests.Session()
 
     if verbose:
         print('Requesting main page for pii: %s' % pii)
-    r = s.get(BASE_URL + pii, cookies={'Site': 'Mobile'})
+    resp = sess.get(BASE_URL + pii, cookies={'Site': 'Mobile'})
 
-    # Step 2 - Get the references tags
-    # --------------------------------------------------------------------------
-    # The reference tags contain most of the information about references
-    # They are however missing a lot of the linking information
-    # e.g. link to the article, pdf download, etc
-    soup = BeautifulSoup(r.text)
+    # Step 2 - Get the reference tags
+
+    soup = BeautifulSoup(resp.text)
 
     reference_section = soup.find("ol", {"class": "article-references"})
-
-    import pdb
-    pdb.set_trace()
 
     if reference_section is None:
         # Then we might be a guest. In other words, we might not have sufficient
@@ -636,12 +632,12 @@ def get_references(input, verbose=False):
     #
     #   * I think this entry gets deleted after the requests so it may not be
     #   visible  if looking for it in Chrome. 
-    match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"', r.text)
-    eid = match.group(1)
+    match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"', resp.text)
+    #eid = match.group(1)
 
     # This list comes from the resolveReferences function in article_catalyst.js
     payload = {
-        '_eid': eid,
+        '_pii': pii,
         '_refCnt': n_refs,
         '_docType': 'article',  # yikes, this might change ...
         '_refRangeStart': '1',
@@ -652,7 +648,7 @@ def get_references(input, verbose=False):
 
     if verbose:
         print('Requesting reference links')
-    r2 = s.get(REF_RESOLVER_URL, params=payload)
+    r2 = sess.get(REF_RESOLVER_URL, params=payload)
 
     # Step 3.2 - Parse the returned information into single entries
     # --------------------------------------------------------------------------
@@ -688,9 +684,15 @@ def get_references(input, verbose=False):
     # \d+ which would shift the index from 1 to 0
     if verbose:
         print('Creating reference objects')
-    ref_objects = [ScienceDirectRef(ref_tag, ref_link_info[1], ref_id) for \
-                   ref_tag, ref_link_info, ref_id in \
-                   zip(ref_tags, ref_match_result, range(n_refs))]
+
+    if len(ref_match_result) > 0:
+        zipped = zip(ref_tags, ref_match_result, range(n_refs))
+        ref_objects = [ScienceDirectRef(ref_tag, ref_link_info[1], ref_id) for
+                       ref_tag, ref_link_info, ref_id in zipped]
+    else:
+        zipped = zip(ref_tags, range(n_refs))
+        ref_objects = [ScienceDirectRef(ref_tag, ref_id) for
+                       ref_tag, ref_id in zipped]
 
     # Step 4:
     # --------------------------------------------------------------------------
@@ -714,13 +716,13 @@ def get_references(input, verbose=False):
             # If we've got enough, then update the counts
             # The 20 may be arbitrary but it was what was used in original JS
             if ref_count > 20:
-                ref_count_list += _update_counts(s, ref_scopus_eids, REF_RESOLVER_URL)
+                ref_count_list += _update_counts(sess, ref_scopus_eids, REF_RESOLVER_URL)
                 ref_count = 0
                 ref_scopus_eids = []
 
     # Get any remaining reference counts
     if ref_count != 0:
-        ref_count_list += _update_counts(s, ref_scopus_eids, REF_RESOLVER_URL)
+        ref_count_list += _update_counts(sess, ref_scopus_eids, REF_RESOLVER_URL)
 
         # Take the raw data and set the citation count for each object
     for ref_tuple in ref_count_list:
@@ -774,13 +776,13 @@ def _update_counts(s, eids, resolve_url):
 
 def get_entry_info(input, verbose=False, soup=None):
     if soup is None:
-        soup = make_soup(input, verbose)
+        soup, _, _ = _make_soup(input, verbose)
     return ScienceDirectEntry(soup, verbose)
 
 
 def get_pdf_link(input, verbose=False, soup=None):
     if soup is None:
-        soup = make_soup(input, verbose)
+        soup, _, _ = _make_soup(input, verbose)
 
     navbar = soup.find('ul', {'class' : 'navigation'})
     pdf_link = navbar.find('a', {'id' : 'pdfLink'})['href']
@@ -791,26 +793,37 @@ def get_all_info(input, verbose=False):
     pass
 
 
-def make_soup(input, verbose=False):
-    # Check if the input is a PII or URL, and
+def _make_soup(input, verbose=False):
+    # Check if the input is a PII, DOI, or URL, and
     # use appropriate argument in web page retrieval
-    if is_url(input):
-        soup = connect(url=input, verbose=verbose)
+    if _is_url(input):
+        soup = _connect(url=input, verbose=verbose)
+    elif _is_doi(input):
+        url = 'http://dx.doi.org/' + input
+        soup = _connect(url=url, verbose=verbose)
     else:
-        soup = connect(pii=input, verbose=verbose)
+        soup = _connect(pii=input, verbose=verbose)
 
     return soup
 
 
-def is_url(input):
+def _is_url(input):
     if input.find('sciencedirect') != -1:
         return True
     else:
         return False
 
 
-def extract_pii(url):
-    # Extract the DOI from the URL
+def _is_doi(input):
+    input = input.strip()
+    if input[0:3] == '10.':
+        return True
+    else:
+        return False
+
+
+def _extract_pii(url):
+    # Extract the PII from the URL
     # Get everything between 'sciencedirect.com/science/article/pii/' and the URL ending
     # pii = re.findall('pii/(.*?)', url, re.DOTALL)
 
@@ -821,7 +834,7 @@ def extract_pii(url):
     return pii
 
 
-def connect(pii=None, url=None, verbose=None):
+def _connect(pii=None, url=None, verbose=None):
     # Construct valid ScienceDirect URL from given DOI
     if pii is not None:
         article_url = _SD_URL + '/science/article/pii/' + pii
@@ -832,7 +845,7 @@ def connect(pii=None, url=None, verbose=None):
 
     # Web page retrieval
     # -------------------
-    s = requests.Session()
+    sess = requests.Session()
 
     if verbose:
         print('Requesting main page for doi: %s' % pii)
@@ -840,19 +853,17 @@ def connect(pii=None, url=None, verbose=None):
     # Using the mobile version of ScienceDirect
     # This is to avoid dynamically loading page features on the desktop site
     # and because the mobile site has more cleanly organized information
-    resp = s.get(article_url, cookies={'Site': 'Mobile'})
+    resp = sess.get(article_url, cookies={'Site': 'Mobile'})
 
-    '''
     if not resp.ok:
         if resp.status_code == 404:
             raise ConnectionError('Could not locate page info - 404 Error')
         else:
             raise ConnectionError('Could not connect to article page.')
-    '''
 
-    with open('sd_test.html', 'wb') as file:
-        file.write(resp.content)
+    #with open('sd_test.html', 'wb') as file:
+    #    file.write(resp.content)
 
     soup = BeautifulSoup(resp.text)
 
-    return soup
+    return soup, sess, resp

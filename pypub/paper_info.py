@@ -96,8 +96,8 @@ class PaperInfo(BasePaperInfo):
 
     def __repr__(self):
         return '' + \
-            'title: %s\n' % self.entry.get('title') + \
-            'authors: %s\n' % self.entry.get('authors') + \
+            'title: %s\n' % getattr(self.entry, 'title', None) + \
+            'authors: %s\n' % [x.name for x in getattr(self.entry, 'authors', None)] + \
             'doi: %s\n' % self.doi + \
             'url: %s\n' % self.url + \
             'scraper_obj: %s\n' % self.scraper_obj

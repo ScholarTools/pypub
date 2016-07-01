@@ -7,7 +7,6 @@ Generic code for other code
 """
 
 import inspect
-from bs4 import BeautifulSoup
 
 
 def get_class_list_display_string(input_list):

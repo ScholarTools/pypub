@@ -68,7 +68,7 @@ class PaperInfo(BasePaperInfo):
     def get_entry_info(self):
         input = self._make_input()
         if self.publisher_interface is not None:
-            entry = utils.refs_to_list(self.publisher_interface.get_entry_info(input))
+            entry = utils.convert_to_dict(self.publisher_interface.get_entry_info(input))
             self.entry = entry
             return entry
         else:

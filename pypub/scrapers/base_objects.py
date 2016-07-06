@@ -18,6 +18,9 @@ class BaseEntry(object):
         self.url = None
         self.pdf_link = None
         self.scraper_obj = None
+        self.notes = None
+        self.pubmed_id = None
+        self.issn = None
         # Note that each entry in 'authors' is a separate author class
         # with self.name, self.affiliations, and self.email
 
@@ -38,7 +41,7 @@ class BaseEntry(object):
 
 
 class BaseAuthor(object):
-    def __init(self):
+    def __init__(self):
         self.name = None
         self.affiliations = None
         self.email = None

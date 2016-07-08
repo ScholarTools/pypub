@@ -47,8 +47,10 @@ class PaperInfo(BasePaperInfo):
     def populate_info(self):
         input = self._make_input()
 
-        self.entry = utils.convert_to_dict(self.publisher_interface.get_entry_info(input))
-        self.references = utils.refs_to_list(self.publisher_interface.get_references(input))
+        #self.entry = utils.convert_to_dict(self.publisher_interface.get_entry_info(input))
+        #self.references = utils.refs_to_list(self.publisher_interface.get_references(input))
+        self.entry = self.publisher_interface.get_entry_info(input)
+        self.references = self.publisher_interface.get_references(input)
         self.pdf_link = self.publisher_interface.get_pdf_link(input)
 
     def _make_input(self):
@@ -68,7 +70,8 @@ class PaperInfo(BasePaperInfo):
     def get_entry_info(self):
         input = self._make_input()
         if self.publisher_interface is not None:
-            entry = utils.convert_to_dict(self.publisher_interface.get_entry_info(input))
+            #entry = utils.convert_to_dict(self.publisher_interface.get_entry_info(input))
+            entry = self.publisher_interface.get_entry_info(input)
             self.entry = entry
             return entry
         else:
@@ -78,7 +81,8 @@ class PaperInfo(BasePaperInfo):
     def get_references(self):
         input = self._make_input()
         if self.publisher_interface is not None:
-            refs = utils.refs_to_list(self.publisher_interface.get_references(input))
+            #refs = utils.refs_to_list(self.publisher_interface.get_references(input))
+            refs = self.publisher_interface.get_references(input)
             self.references = refs
             return refs
         else:

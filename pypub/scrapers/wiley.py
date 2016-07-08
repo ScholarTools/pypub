@@ -163,17 +163,21 @@ class WileyEntry(BaseEntry):
         # For old journal issues, two dates are given: original publication date and
         # online publication date. This returns the original journal pub date.
         self.date = findValue(mainContent, 'span', 'issueDate', 'id')
-        self.year = self.date[-4:]
+        if self.date is not None:
+            self.year = self.date[-4:]
 
         vol = findValue(mainContent, 'span', 'volumeNumber', 'id')
-        vol = vol.lower().replace('volume ', '')
+        if vol is not None:
+            vol = vol.lower().replace('volume ', '')
         issue = findValue(mainContent, 'span', 'issueNumber', 'id')
-        issue = issue.lower().replace('issue ', '')
+        if issue is not None:
+            issue = issue.lower().replace('issue ', '')
         self.volume = vol
         self.issue = issue
 
         self.pages = findValue(mainContent, 'span', 'issuePages', 'id')
-        self.pages = self.pages[6:] # to get rid of 'pages: ' at the beginning
+        if self.pages is not None:
+            self.pages = self.pages[6:] # to get rid of 'pages: ' at the beginning
 
 
         # Keywords and Abstract:

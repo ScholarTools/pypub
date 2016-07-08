@@ -46,6 +46,12 @@ class BaseAuthor(object):
         self.affiliations = None
         self.email = None
 
+    def __repr__(self):
+        return u'' + \
+        '        name: %s\n' % self.name + \
+        'affiliations: %s\n' % self.affiliations + \
+        '       email: %s\n' % self.email
+
 
 class BaseRef(object):
     def __init__(self):

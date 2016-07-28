@@ -16,9 +16,11 @@ def get_publisher_urls(doi=None, url=None):
     if url is not None:
         resp = requests.get(url)
         pub_url = resp.url
-    else:
+    elif doi is not None:
         resp = requests.get('http://dx.doi.org/' + doi)
         pub_url = resp.url
+    else:
+        return None, None
 
     # Extract the 'base URL' from the full url.
     # This will be everything before the third instance of '/'

@@ -21,6 +21,7 @@ class BaseEntry(object):
         self.notes = None
         self.pubmed_id = None
         self.issn = None
+
         # Note that each entry in 'authors' is a separate author class
         # with self.name, self.affiliations, and self.email
 
@@ -32,12 +33,12 @@ class BaseEntry(object):
         'publication: %s\n' % self.publication + \
         '       date: %s\n' % self.date + \
         '        year %s\n' % self.year + \
-        '     volume: %s\n' % self.volume + \
+        '     volume: %s\n' % self.volume.strip() + \
         '      issue: %s\n' % self.issue + \
         '      pages: %s\n' % self.pages + \
         '        doi: %s\n' % self.doi + \
-        '         url %s\n' % self.url + \
-        '    pdf_link %s\n' % self.pdf_link
+        '        url: %s\n' % self.url + \
+        '   pdf_link: %s\n' % self.pdf_link
 
 
 class BaseAuthor(object):

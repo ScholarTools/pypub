@@ -114,7 +114,7 @@ class NatureAuthor(BaseAuthor):
 
     #
     def populate_affiliations(self,aff_labels):
-        self.affiliations = [aff_labels[int(x)-1] for x in self.sups]
+        self.affiliations = [aff_labels[int(x)-1] for x in self.supers]
 
     def __repr__(self):
         return u'' + \

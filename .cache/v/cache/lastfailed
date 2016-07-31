@@ -1,6 +1,0 @@
-{
-  "pypub/pubmed_test.py": true, 
-  "tests/sd_test.py": true, 
-  "tests/springer_test.py": true, 
-  "tests/wiley_test.py": true
-}

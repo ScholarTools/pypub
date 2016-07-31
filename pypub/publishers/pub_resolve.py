@@ -1,3 +1,7 @@
+"""
+
+"""
+
 # Standard imports
 import os
 import inspect
@@ -12,13 +16,30 @@ from pypub import utils
 
 
 def get_publisher_urls(doi=None, url=None):
+    """
+    
+    Returns
+    -------
+    (base_url, pub_url)
+    
+    base_url :
+    pub_url : 
+    """
+    
+    #JAH: This looks inefficient as we first request the entire page,
+    #and then presumably later we request the entire page again
+    
     # Get or make CrossRef link, then follow it to get article URL
     if url is not None:
         resp = requests.get(url)
         pub_url = resp.url
     elif doi is not None:
+        #JAH: Patch into Crossref => see crossref.doi module
+        #This fails silently on an invalid DOI
         resp = requests.get('http://dx.doi.org/' + doi)
         pub_url = resp.url
+        import pdb
+        pdb.set_trace()
     else:
         return None, None
 
@@ -41,6 +62,11 @@ def get_publisher_urls(doi=None, url=None):
 
 
 def get_publisher_site_info(base_url):
+    
+    
+    #JAH: This loading should be done on import
+    #The searching can be done in this function
+    
     # Add the site_features.csv file to the path
     current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     root = os.path.dirname(current_dir)

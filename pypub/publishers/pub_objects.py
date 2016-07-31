@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+JAH: Please document the layout here. What does this module do?
 
 """
 # Third party imports
@@ -10,8 +11,16 @@ from bs4 import BeautifulSoup
 from pypub_errors import *
 from pypub.publishers import pub_resolve
 
+from selenium import webdriver
 
 class Publisher:
+    
+    """
+    Attributes:
+    -----------
+    JAH: It would be good to document them here ...
+    
+    """
     def __init__(self, **kwargs):
         # The following attributes are taken from the site_features.csv file.
         # These are used if a row of that file was used to populate this class.
@@ -85,6 +94,12 @@ class ScienceDirect(Publisher):
     # Need to overload these functions because ScienceDirect scraper
     # can't handle DOI inputs - needs either PII or URL
     def get_entry_info(self, doi_or_url=None, verbose=False):
+        
+        driver = webdriver.Chrome()
+        
+        import pdb
+        pdb.set_trace()
+        
         if 'sciencedirect' not in doi_or_url:
             doi_or_url = self._doi_to_link(doi_or_url)
         return self.scraper.get_entry_info(doi_or_url, verbose=verbose)

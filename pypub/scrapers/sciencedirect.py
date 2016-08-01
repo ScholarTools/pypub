@@ -238,8 +238,12 @@ class ScienceDirectEntry(BaseEntry):
             superscripts = []
             aff_names = []
             for x in aff_tags:
-                superscripts.append(x.find('span').text)
-                aff_names.append(str(x.contents[1]))
+                script = x.find('span')
+                if script is None:
+                    aff_names.append(str(x.contents[0]))
+                else:
+                    superscripts.append(x.find('span').text)
+                    aff_names.append(str(x.contents[1]))
 
             aff_dict = dict(zip(superscripts, aff_names))
 

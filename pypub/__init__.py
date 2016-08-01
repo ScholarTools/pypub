@@ -1,0 +1,1 @@
+from pypub.entry_functions import get_paper_info

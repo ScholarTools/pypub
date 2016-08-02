@@ -19,3 +19,6 @@ class ScraperError(Exception):
 
 class UnsupportedPublisherError(Exception):
     pass
+
+class InvalidDOIError(Exception):
+    pass

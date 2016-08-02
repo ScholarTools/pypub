@@ -1,6 +1,5 @@
-from pypub_errors import *
-import pypub.utils as utils
 from pypub.publishers import pub_resolve
+from pypub.pypub_errors import *
 
 
 class BasePaperInfo(object):

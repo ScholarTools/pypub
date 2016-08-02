@@ -8,7 +8,8 @@ import requests
 from bs4 import BeautifulSoup
 
 # Local imports
-from pypub_errors import *
+from pypub.pypub_errors import *
+from pypub.paper_info import PaperInfo
 from pypub.publishers import pub_resolve
 
 from selenium import webdriver
@@ -60,6 +61,10 @@ class Publisher:
             doi_or_url = self.doi_or_url
         return self.scraper.get_pdf_link(doi_or_url)
 
+    def get_paper_info(self):
+        paper_info = PaperInfo()
+        paper_info.entry = self.get_entry_info()
+
 
 class NatureNRG(Publisher):
     def __init__(self):
@@ -96,7 +101,7 @@ class ScienceDirect(Publisher):
     def get_entry_info(self, doi_or_url=None, verbose=False):
         
         driver = webdriver.Chrome()
-        
+
         import pdb
         pdb.set_trace()
         

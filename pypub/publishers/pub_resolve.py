@@ -3,18 +3,20 @@
 """
 
 # Standard imports
-import os
-import inspect
 import csv
 
 # Third party imports
 import requests
 
 # Local imports
-from pypub_errors import *
+from pypub.pypub_errors import *
 from pypub import utils
 
+from . import site_features_file
 
+from crossref import doi as xref
+
+'''
 def get_publisher_urls(doi=None, url=None):
     """
     
@@ -26,8 +28,13 @@ def get_publisher_urls(doi=None, url=None):
     pub_url : 
     """
     
-    #JAH: This looks inefficient as we first request the entire page,
-    #and then presumably later we request the entire page again
+    # JAH: This looks inefficient as we first request the entire page,
+    # and then presumably later we request the entire page again
+
+    # KSA: Using xref.is_valid() also seems inefficient here though,
+    # because it makes a get request to make sure the DOI is valid,
+    # and then makes another one to get the publisher URL. Is there
+    # a better way I should do this?
     
     # Get or make CrossRef link, then follow it to get article URL
     if url is not None:
@@ -36,44 +43,74 @@ def get_publisher_urls(doi=None, url=None):
     elif doi is not None:
         #JAH: Patch into Crossref => see crossref.doi module
         #This fails silently on an invalid DOI
-        resp = requests.get('http://dx.doi.org/' + doi)
-        pub_url = resp.url
-        import pdb
-        pdb.set_trace()
+        if xref.is_valid(doi):
+            resp = requests.get('http://dx.doi.org/' + doi)
+            pub_url = resp.url
+        else:
+            return None, None
     else:
         return None, None
 
+    base_url = _extract_base_url(pub_url)
+
+    return base_url, pub_url
+'''
+
+def from_doi(doi):
+    if xref.is_valid(doi):
+        resp = requests.get('http://dx.doi.org/' + doi)
+        pub_url = resp.url
+    else:
+        raise InvalidDOIError('DOI could not be resolved to a publisher site.')
+
+    base_url = _extract_base_url(pub_url)
+
+    publisher = _create_scraper_object(base_url)
+    return publisher.get_paper_info()
+
+
+def from_url(url):
+    resp = requests.get(url)
+    pub_url = resp.url
+    base_url = _extract_base_url(pub_url)
+
+    publisher = _create_scraper_object(base_url)
+    return publisher.get_paper_info()
+
+
+def _extract_base_url(full_url):
     # Extract the 'base URL' from the full url.
     # This will be everything before the third instance of '/'
     # I.e. for the site http://example.com/site/path, the base
     # URL will be 'http://example.com'
-    end_index = utils.find_nth(pub_url, '/', 3)
-    base_url = pub_url[:end_index]
+    end_index = utils.find_nth(full_url, '/', 3)
+    base_url = full_url[:end_index]
 
     # Nature sites are specific to the different journals
     # I.e. http://nature.com/nrg is for Nature Reviews Genetics
     if 'nature' in base_url:
-        nature_end_index = utils.find_nth(pub_url, '/', 4)
-        base_url = pub_url[:nature_end_index]
+        nature_end_index = utils.find_nth(full_url, '/', 4)
+        base_url = full_url[:nature_end_index]
 
     base_url = base_url.replace('www.', '')
 
-    return base_url, pub_url
+    return base_url
+
+
+def _create_scraper_object(base_url):
+    pub_dict = get_publisher_site_info(base_url)
+    scraper_name = pub_dict.get('object')
+    if scraper_name is None:
+        raise UnsupportedPublisherError('DOI could not be resolved to a supported publisher.')
+    else:
+        module = __import__('pub_objects')
+        class_ = getattr(module, scraper_name)
+        publisher = class_()
+        return publisher
 
 
 def get_publisher_site_info(base_url):
-    
-    
-    #JAH: This loading should be done on import
-    #The searching can be done in this function
-    
-    # Add the site_features.csv file to the path
-    current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    root = os.path.dirname(current_dir)
-    #site_features_file = os.path.join(root, '/publishers/site_features.csv')
-    site_features_file = root + '/publishers/site_features.csv'
-
-    # Now search the site_features.csv file to get information relevant to that provider
+    # Search the site_features.csv file to get information relevant to that provider
     with open(site_features_file) as f:
         reader = csv.reader(f)
         headings = next(reader)  # Save the first line as the headings

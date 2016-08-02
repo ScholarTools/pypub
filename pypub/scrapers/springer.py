@@ -40,8 +40,8 @@ a Springer Link URL.
 """
 # Standard imports
 import sys
-import os
 
+import os
 # Third party imports
 import requests
 from bs4 import BeautifulSoup
@@ -50,7 +50,7 @@ from bs4 import BeautifulSoup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
-from pypub_errors import *
+from pypub.pypub_errors import *
 from pypub.scrapers.base_objects import *
 
 _SP_URL = 'http://link.springer.com'

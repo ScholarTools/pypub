@@ -32,6 +32,7 @@ a Nature URL.
 """
 # Standard
 import sys
+
 import os
 import re
 
@@ -44,7 +45,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
-from pypub_errors import *
+from pypub.pypub_errors import *
 from pypub.scrapers.base_objects import *
 
 _NT_URL = 'http://nature.com'

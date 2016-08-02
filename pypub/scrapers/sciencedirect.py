@@ -29,17 +29,17 @@ a Sciencedirect URL.
 """
 # Standard imports
 import sys
+
 import os
 import re
+
 # TODO: Move this into a compatability module
 # -----------------------------------------------------
 PY2 = sys.version_info.major == 2
 
 if PY2:
-    from urllib import quote as urllib_quote
     from urllib import unquote as urllib_unquote
 else:
-    from urllib.parse import quote as urllib_quote
     from urllib.parse import unquote as urllib_unquote
 # -----------------------------------------------------
 
@@ -52,7 +52,7 @@ from bs4 import BeautifulSoup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..utils import get_truncated_display_string as td
 from ..utils import findValue
-from pypub_errors import *
+from pypub.pypub_errors import *
 from pypub.scrapers.base_objects import *
 
 

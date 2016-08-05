@@ -224,7 +224,7 @@ class ScienceDirectEntry(BaseEntry):
         # This might be more reliable than assuming we have doi:asdfasdf
         self.doi = findValue(article_abstract, 'span', 'article-doi', 'class')
         if self.doi is not None:
-            self.doi = self.doi[4:]  # doi:10.######### => remove 'doi":'
+            self.doi = self.doi.replace('doi:', '')  # doi:10.######### => remove 'doi":'
 
         self.title = findValue(article_abstract, 'h1', 'article-title', 'class')
 

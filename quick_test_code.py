@@ -59,22 +59,18 @@ el.parse_raw_references(raw_refs)
 # Science Direct
 # =====================================================
 
-from pypub.scrapers import sciencedirect as sd
-# from pypub.scrapers import sciencedirect_selenium as sd
+# from pypub.scrapers import sciencedirect as sd
+from pypub.scrapers import sciencedirect_selenium as sd
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
 #sd_link = 'http://www.sciencedirect.com/science/article/pii/S0006899313013048'
 sd_pii = 'S0006899313013048'
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/S0092867413004674'
-# sd_link = 'http://www.sciencedirect.com/science/article/pii/S0012160613006453'
+sd_link = 'http://www.sciencedirect.com/science/article/pii/S0004370216300261'
 
-# sd_link = 'http://www.sciencedirect.com/science/article/pii/S0006349513006176'
-
-# sd_link = 'http://www.sciencedirect.com/science/article/pii/S0304399100000760'
-
-entry = sd.get_entry_info(sd_link, verbose=True)
-print(entry)
+# entry = sd.get_entry_info(sd_link, verbose=True)
+# print(entry)
 
 refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])

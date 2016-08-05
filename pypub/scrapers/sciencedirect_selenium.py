@@ -29,7 +29,6 @@ a Sciencedirect URL.
 """
 # Standard imports
 import sys
-
 import os
 import re
 
@@ -93,49 +92,58 @@ class ScienceDirectAuthor(BaseAuthor):
 
         super().__init__()
 
-        # 1st bit of text is the name, then we have
-        self.name = li_tag.contents[0]
-        # KeyError would mean that there are no superscripted affiliations.
-        # In this case, just set self._data_refs to None and keep moving.
-        try:
-            self._data_refs = re.compile('[^\S]+').split(li_tag['data-refs'])
-        except KeyError:
-            self._data_refs = None
-        # This is a list:
-        # http://www.crummy.com/software/BeautifulSoup/bs4/doc/#multi-valued-attributes
-        # self._class = li_tag['class']
+        self.name = None
+        self.affiliations = None
+        self.email = None
 
-        # Extract all integers from the superscripted text
+        # The name is kept within the first 'a' tag
+        first_tag = li_tag.find('a')
+        if first_tag is not None:
+            self.name = first_tag.text
+
+        # Extract all entries from the superscripted text
         # This way each author object has a list of superscripts
         # corresponding to the affiliation list indices.
+        # This should work regardless if the superscripts are
+        # alphabetical or numeric.
 
-
-        sup = li_tag.find_all('sup')
-
+        # This method is for when each superscript is a link.
+        # This is not always the case.
         sups = []
-        for x in sup:
-            # Get text of superscripts
-            text = x.text
+        sup_list = li_tag.find_all('a', {'class': 'auth_aff'})
+        for x in sup_list:
+            superscript_tag = x.find('sup')
+            if superscript_tag is not None:
+                sups.append(superscript_tag.text)
 
-            # Check if there are linked footnotes
-            # Footnotes are different from affiliations and do
-            # not correspond to any text in the affiliations list.
-            footnotes = x.find_all('a')
-            if footnotes is not None:
-                for footnote in footnotes:
-                    if footnote.text != '':
-                        text = text.replace(footnote.text, '')
+        # In case the superscripts were not within 'a' tags and
+        # instead are plaintext superscripts, this method gets them.
+        if not sups:
+            sup_list = li_tag.find_all('sup')
 
-            # Clean up text and extract the numbers
-            text = text.replace(' ', '')
-            splitlist = text.split(',')
-            for num in splitlist:
-                if num != '':
-                    sups.append(num)
+            for x in sup_list:
+                # Get text of superscripts
+                text = x.text
+
+                # Check if there are linked footnotes
+                # Footnotes are different from affiliations and do
+                # not correspond to any text in the affiliations list.
+                footnotes = x.find_all('a')
+                if footnotes is not None:
+                    for footnote in footnotes:
+                        if footnote.text != '':
+                            text = text.replace(footnote.text, '')
+
+                # Clean up text and extract the numbers/letters
+                text = text.replace(' ', '')
+                splitlist = text.split(',')
+                for num in splitlist:
+                    if num != '':
+                        sups.append(num)
 
         self.sups = sups
 
-        contact = li_tag.find('a', {'class': 'icon-email-author'})
+        contact = li_tag.find('a', {'class': 'auth_mail'})
         if contact == None:
             self.email = None
         else:
@@ -192,54 +200,79 @@ class ScienceDirectEntry(BaseEntry):
 
         # Things to get:
         # --------------
-        self.publication = findValue(center_content, 'a', 'publication-title', 'class')
+        volIssue = findValue(center_content, 'p', 'volIssue', 'class')
 
-        self.date = findValue(center_content, 'span', 'cover-date', 'class')
-        self.year = self.date[-4:]
+        self.publication = None
+        pub_head = center_content.find('div', {'class' : 'publicationHead'})
+        if pub_head is not None:
+            publication = pub_head.find('div', {'class': 'title'})
+            # Some publications (like Cell) have special logos within the banner
+            # rather than a specific name. If there is an 'img' tag present, this
+            # is one of those special cases.
+            if publication.find('img') is not None:
+                self.publication = publication.find('img')['alt']
+            else:
+                self.publication = publication.text
 
-        temp = findValue(center_content, 'p', 'publication-volume-issue', 'class')
-        self.volume = re.findall(', (.*?):', temp, re.DOTALL)
-        self.volume = self.volume[0]
+        self.volume = None
+        self.issue = None
+        self.pages = None
+        self.date = None
+        self.first_page = None
+        self.last_page = None
 
-        self.first_page = findValue(center_content, 'span', 'first-page', 'class')
-        self.last_page = findValue(center_content, 'span', 'last-page', 'class')
-        self.pages = self.first_page + "-" + self.last_page
-        # special_issue #p,publication-special-issue
+        data_list = volIssue.split(', ')
+        for x in data_list:
+            if 'Volume' in x:
+                self.volume = x
+                self.volume = self.volume.replace('Volume ', '')
+            elif 'Issue' in x:
+                self.issue = x
+                self.issue = self.issue.replace('Issue ', '')
+            elif 'Pages' in x:
+                self.pages = x
+                self.pages = self.pages.replace('Pages ', '')
+            else:
+                self.date = x
 
-        # Abstract
-        # --------
-        self.abstract = None
-        abstract_sections = center_content.find_all('section', {'class' : 'article-abstract'})
-        for a in abstract_sections:
-            if a.find('li') is not None:
-                continue
-            paragraph = a.find('p', {'class' : 'para'})
-            if paragraph is not None:
-                self.abstract = paragraph.text
-                break
+        if self.pages is not None:
+            if self.pages.find('–') != -1:
+                pages = self.pages.split('–')
+            else:
+                pages = self.pages.split('-')
+            if len(pages) == 2:
+                self.first_page = pages[0]
+                self.last_page = pages[1]
 
         # DOI retrieval
         # -------------
         # Could also graph href inside of the class and strip http://dx.doi.org/
         # This might be more reliable than assuming we have doi:asdfasdf
-        self.doi = findValue(center_content, 'span', 'article-doi', 'class')
+        link_box = center_content.find('dl', {'class': 'extLinks'})
+        self.doi = findValue(link_box, 'dd', 'doi', 'class')
         if self.doi is not None:
             self.doi = self.doi[4:]  # doi:10.######### => remove 'doi":'
 
-        self.title = findValue(center_content, 'h1', 'article-title', 'class')
+        self.title = findValue(center_content, 'h1', 'svTitle', 'class')
 
         # Authors:
         # -------
-        # Look for <li> tags with class="author*"
-        # TODO: Can move compiling to initialization
-        self.authors = [ScienceDirectAuthor(x) for x in center_content.find_all('li', class_=re.compile('^author'))]
+        author_group = center_content.find('ul', {'class': 'authorGroup'})
+        author_list = author_group.find_all('li')
+        self.authors = [ScienceDirectAuthor(x) for x in author_list]
 
-        aff_tags = center_content.find_all('li', {'class' : 'affiliation'})
+        # Affiliations section
+        aff_group = center_content.find('ul', {'class': 'affiliation'})
+        aff_tags = aff_group.find_all('li')
 
-        if len(aff_tags) != 1:
+        if aff_tags is None:
+            return
+
+        if len(aff_tags) >= 1:
             # ScienceDirect uses letter superscripts for author affiliations rather than numbers, making them
             # annoying to index. This takes the footnote-style list of affiliated institutions and makes a
             # dict with the superscript letters as keys.
+            # ScienceDirect COULD use either though... need to check for that.
             superscripts = []
             aff_names = []
             for x in aff_tags:
@@ -247,8 +280,8 @@ class ScienceDirectEntry(BaseEntry):
                 if script is None:
                     aff_names.append(str(x.contents[0]))
                 else:
-                    superscripts.append(x.find('span').text)
-                    aff_names.append(str(x.contents[1]))
+                    superscripts.append(x.find('sup').text)
+                    aff_names.append(script.text)
 
             aff_dict = dict(zip(superscripts, aff_names))
 
@@ -260,8 +293,27 @@ class ScienceDirectEntry(BaseEntry):
             for author in self.authors:
                 author.affiliations = aff_tags[0].text
 
-        keyword_tags = center_content.find_all('li', {'class': 'article-keyword'})
-        self.keywords = [x.text for x in keyword_tags]
+        # Abstract and Keywords
+        # --------
+        abstract_section = center_content.find('div', {'id': 'frag_2'})
+        self.abstract = ''
+        self.keywords = []
+
+        abstract_paragraphs = abstract_section.find_all('div', {'class' : 'abstract'})
+        for a in abstract_paragraphs:
+            paragraph = a.find('p')
+            if paragraph is not None:
+                self.abstract = self.abstract + paragraph.text
+
+        # Get article keywords
+        keyword_section = abstract_section.find('ul', {'class': 'keyword'})
+        if keyword_section is not None:
+            keywords = keyword_section.find_all('li')
+            for x in keywords:
+                text = x.text
+                text = text.replace(';', '')
+                text = text.strip()
+                self.keywords.append(text)
 
     def __repr__(self):
         return u'' + \
@@ -355,45 +407,44 @@ class ScienceDirectRef(BaseRef):
         # Reference Bibliography Section:
         # -------------------------------
 
+        ref = ref_tags.find('ul', {'class': 'reference'})
+
         # Example str: <span class="r_volume">Volume 47</span>
         self.ref_id = ref_id + 1  # Input is 0 based
-        self.title = findValue(ref_tags, 'li', 'reference-title', 'class')
-        all_authors = ref_tags.find_all('span', {'class' : 'reference-author'})
-        self.authors = [x.text for x in all_authors]
-        #self.authors = findValue(ref_tags, 'li', 'reference-author', 'class')
-        # NOTE: We can also get individual authors if we would like.
-        #
-        #   Search would be on:
-        #       <span class="reference-author">
-        #   instead of on the list.
+        self.title = findValue(ref, 'li', 'title', 'class')
+
+        all_authors = ref_tags.find('li', {'class' : 'author'})
+        author_list = all_authors.split(', ')
+        self.authors = []
+        for x in author_list:
+            x = x.strip()
+            self.authors.append(x)
 
         # Unfortunately r_publication is found both for the title and for
         # the publication. Some custom code is needed to first go into a r_series
         # span and then to the publication
         self.publication = None
-        r_source_tag = ref_tags.find('span', {'class': 'r_series'})
+        self.volume = None
+        self.year = None
+        self.pages = None
 
-        if r_source_tag is not None:
-            pub_tag = r_source_tag.find('span', {'class': 'r_publication'})
-            if pub_tag is not None:
-                self.publication = pub_tag.text.replace('\\xa0', ' ')
+        source = ref.find('li', {'class': 'source'})
+        source_parts = source.split(', ')
 
-        temp_volume = findValue(ref_tags, 'span', 'r_volume', 'class')
-        if temp_volume is None:
-            self.volume = None
-        else:
-            self.volume = temp_volume.replace('Volume ', '')
+        # This needs to be completed and properly parsed eventually
+        '''
+        # First case: 'Publisher, volume (date), pp. pages'
+        if len(source_parts) == 3:
+            self.publication = source_parts[0]
+            # Extract volume and date
+            paren = source_parts[1].find('(')
+            self.volume = source_parts[1][:paren].strip()
+            self.date = source_parts[1][paren+1:4]
+            # Extract
+        '''
 
-        self.issue = findValue(ref_tags, 'span', 'r_issue', 'class')
-        self.series = findValue(ref_tags, 'span', 'r_series', 'class')
-        self.date = findValue(ref_tags, 'span', 'r_pubdate', 'class')
+        self.publication = source
 
-        temp_pages = findValue(ref_tags, 'span', 'r_pages', 'class')
-        if temp_pages is None:
-            self.pages = None
-        else:
-            # TODO: is the unicode working properly ??? 576â€“577 and ideally 576-577
-            self.pages = temp_pages.replace('pp. ', '')
 
         # Reference Meta Section:
         # -----------------------
@@ -405,9 +456,12 @@ class ScienceDirectRef(BaseRef):
         self.scopus_cite_count = None
         self.aps_full_text = None
 
-        if ref_link_info is not None:
+        if ref_link_info is None:
+            link_soup = ref.find('li', {'class': 'external'})
+        else:
             link_soup = BeautifulSoup(ref_link_info)
 
+        if link_soup is not None:
             # Each section is contained a div tag with the class boxLink, although
             # some classes have more text in the class attribute, thus the *)
             #box_links = link_soup.find_all('div', {'class': re.compile('boxLink*')})
@@ -484,6 +538,7 @@ class ScienceDirectRef(BaseRef):
                 doi = doi_link[doi_link.find('dx.doi.org/') + 11:]
         return doi
 
+    '''
     def to_data_frame(self, all_entries):
         """
         Return a Pandas DataFrame
@@ -511,6 +566,7 @@ class ScienceDirectRef(BaseRef):
         # The goal is to represent the object as a single string
         # Essentially as a citation
         pass
+    '''
 
     def __repr__(self):
         return u'' + \
@@ -548,16 +604,10 @@ def get_references(input, verbose=False):
 
         e.g. http://www.sciencedirect.com/science/article/pii/0006899387903726
 
-
-
-
     Implementation Notes:
     ---------------------
     From what I can tell this information is not exposed via the Elsevier API.
-
     In order to minimize complexity, the mobile site is requested: via a cookie.
-
-
 
     Code Layout and Algorithm Notes:
     --------------------------------
@@ -566,19 +616,12 @@ def get_references(input, verbose=False):
 
     # TODO: Make this a class reference parser
 
-    # *** These tags are mobile-site specific
-
     # When we don't have proper access rights, this is present in the html
     GUEST_TAG_TUPLE = ("li", {"id": "menuGuest"})
 
-    # Entries are "li" tags with classes of the form:
-    #   article-reference-article
-    #   article-reference-other-ref
-    REFERENCE_TAG_TUPLE = ("li", {"class": re.compile('article-reference-*')})
-
     # This is the URL to the page that contains the document info, including
     # reference material
-    BASE_URL = _SD_URL + '/science/article/pii/'
+    base_url = _SD_URL + '/science/article/pii/'
 
     # This URL was found first via Fiddler, then via closer inspection of the script
     # 'article_catalyst.js' under sciencedirect.com/mobile/js in the function
@@ -591,19 +634,23 @@ def get_references(input, verbose=False):
     else:
         pii = input
 
-    sess = requests.Session()
-
     if verbose:
         print('Requesting main page for pii: %s' % pii)
-    resp = sess.get(BASE_URL + pii, cookies={'Site': 'Mobile'})
+
+    url = base_url + pii
+
+    page_content = _selenium_connect(url=url)
 
     # Step 2 - Get the reference tags
 
-    soup = BeautifulSoup(resp.text)
+    soup = BeautifulSoup(page_content)
 
-    reference_section = soup.find("ol", {"class": "article-references"})
+    center_content = soup.find('div', {'id': 'centerContent'})
 
-    if reference_section is None:
+    frag9 = center_content.find('div', {'id': 'frag_9'})
+    reference_sections = frag9.find_all('div', {'class': 'refText'})
+
+    if reference_sections is None:
         # Then we might be a guest. In other words, we might not have sufficient
         # privileges to access the data we want. Generally this is protected via
         # IP mask. When I'm working from home I need to VPN into work so
@@ -617,13 +664,16 @@ def get_references(input, verbose=False):
             raise InsufficientCredentialsException(
                 "Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
 
-    ref_tags = reference_section.find_all(*REFERENCE_TAG_TUPLE)
+    ref_list = []
+    for section in reference_sections:
+        ref_list.append(section.find_all('li'))
 
-    n_refs = len(ref_tags)
+    n_refs = len(ref_list)
 
     if n_refs == 0:
         return None
 
+    '''
     # Step 3 - Resolve reference links
     # --------------------------------------------------------------------------
     # The returned html code contains javascript which returns more information
@@ -641,7 +691,7 @@ def get_references(input, verbose=False):
     #
     #   * I think this entry gets deleted after the requests so it may not be
     #   visible  if looking for it in Chrome.
-    match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"', resp.text)
+    match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"', page_content)
     #eid = match.group(1)
 
     # This list comes from the resolveReferences function in article_catalyst.js
@@ -657,7 +707,12 @@ def get_references(input, verbose=False):
 
     if verbose:
         print('Requesting reference links')
-    r2 = sess.get(REF_RESOLVER_URL, params=payload)
+
+    # TODO: make sure this substitution works (selenium for requests)
+    # I'm ignoring the parameters here
+    # r2 = sess.get(REF_RESOLVER_URL, params=payload)
+    r2 = _selenium_connect(REF_RESOLVER_URL)
+
 
     # Step 3.2 - Parse the returned information into single entries
     # --------------------------------------------------------------------------
@@ -691,15 +746,18 @@ def get_references(input, verbose=False):
     #
     # NOTE: We don't really use the #, so we might remove the () around
     # \d+ which would shift the index from 1 to 0
+
+
+    '''
     if verbose:
         print('Creating reference objects')
 
     if len(ref_match_result) > 0:
-        zipped = zip(ref_tags, ref_match_result, range(n_refs))
+        zipped = zip(ref_list, ref_match_result, range(n_refs))
         ref_objects = [ScienceDirectRef(ref_tag, ref_link_info[1], ref_id) for
                        ref_tag, ref_link_info, ref_id in zipped]
     else:
-        zipped = zip(ref_tags, range(n_refs))
+        zipped = zip(ref_list, range(n_refs))
         ref_objects = [ScienceDirectRef(ref_tag, ref_id) for
                        ref_tag, ref_id in zipped]
 
@@ -725,13 +783,13 @@ def get_references(input, verbose=False):
             # If we've got enough, then update the counts
             # The 20 may be arbitrary but it was what was used in original JS
             if ref_count > 20:
-                ref_count_list += _update_counts(sess, ref_scopus_eids, REF_RESOLVER_URL)
+                ref_count_list += _update_counts(ref_scopus_eids, REF_RESOLVER_URL)
                 ref_count = 0
                 ref_scopus_eids = []
 
     # Get any remaining reference counts
     if ref_count != 0:
-        ref_count_list += _update_counts(sess, ref_scopus_eids, REF_RESOLVER_URL)
+        ref_count_list += _update_counts(ref_scopus_eids, REF_RESOLVER_URL)
 
         # Take the raw data and set the citation count for each object
     for ref_tuple in ref_count_list:
@@ -744,7 +802,7 @@ def get_references(input, verbose=False):
     return ref_objects
 
 
-def _update_counts(s, eids, resolve_url):
+def _update_counts(eids, resolve_url, s=None):
     """
     Helper for get_references()
 
@@ -762,9 +820,11 @@ def _update_counts(s, eids, resolve_url):
     -------
     """
     payload = {'_updateCitedBy': ''.join(eids)}
-    r = s.get(resolve_url, params=payload)
+    # r = s.get(resolve_url, params=payload)
+    r = _selenium_connect(resolve_url)
+
     # TODO: Check for 200
-    data = urllib_unquote(r.text)
+    data = urllib_unquote(r)
 
     # myXabsCounts['citedBy_26']='Citing Articles (41)';
     cited_by_results = re.findall("myXabsCounts\['citedBy_(\d+)'\]='[^\(]+\((\d+)", data)

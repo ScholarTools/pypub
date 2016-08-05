@@ -8,6 +8,9 @@ test_site.html
 test_pdf.pdf
 logfile.txt
 
+pypub/scrapers/sciencedirect_selenium.py
+sciencedirect_selenium.py
+
 *.html
 *.pdf
 

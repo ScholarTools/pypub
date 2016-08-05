@@ -18,15 +18,12 @@ def get_paper_info(doi=None, url=None):
     UnsupportedPublisherError : Retrieval of information from this publisher is not yet available
     
     """
-    
-    #JAH: This code is really confusing to me:
-    #My steps: (in pseudocode)
 
     if doi is not None:
-        publisher = pub_resolve.from_doi(doi)
+        publisher = pub_resolve.publisher_from_doi(doi)
         paper_info = publisher.get_paper_info(doi=doi)
     elif url is not None:
-        publisher = pub_resolve.from_url(url)
+        publisher = pub_resolve.publisher_from_url(url)
         paper_info = publisher.get_paper_info(url=url)
     else:
         raise Exception

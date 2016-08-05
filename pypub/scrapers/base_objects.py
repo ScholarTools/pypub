@@ -90,7 +90,7 @@ class BaseRef(object):
         self.citetimes = None
 
     def get(self, attr):
-        return getattr(self, attr)
+        return getattr(self, attr, None)
 
     def __repr__(self):
         return u'' + \

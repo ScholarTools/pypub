@@ -56,7 +56,8 @@ def get_publisher_urls(doi=None, url=None):
     return base_url, pub_url
 '''
 
-def from_doi(doi):
+
+def publisher_from_doi(doi):
     if xref.is_valid(doi):
         resp = requests.get('http://dx.doi.org/' + doi)
         pub_url = resp.url
@@ -65,17 +66,17 @@ def from_doi(doi):
 
     base_url = _extract_base_url(pub_url)
 
-    publisher = _create_scraper_object(base_url)
-    return publisher.get_paper_info()
+    publisher = _create_publisher_interface(base_url)
+    return publisher
 
 
-def from_url(url):
+def publisher_from_url(url):
     resp = requests.get(url)
     pub_url = resp.url
     base_url = _extract_base_url(pub_url)
 
-    publisher = _create_scraper_object(base_url)
-    return publisher.get_paper_info()
+    publisher = _create_publisher_interface(base_url)
+    return publisher
 
 
 def _extract_base_url(full_url):
@@ -97,13 +98,13 @@ def _extract_base_url(full_url):
     return base_url
 
 
-def _create_scraper_object(base_url):
+def _create_publisher_interface(base_url):
     pub_dict = get_publisher_site_info(base_url)
     scraper_name = pub_dict.get('object')
     if scraper_name is None:
         raise UnsupportedPublisherError('DOI could not be resolved to a supported publisher.')
     else:
-        module = __import__('pub_objects')
+        module = __import__('pypub.publishers.pub_objects', fromlist=['pub_objects'])
         class_ = getattr(module, scraper_name)
         publisher = class_()
         return publisher

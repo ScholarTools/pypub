@@ -27,39 +27,18 @@ class PaperInfo(BasePaperInfo):
         if self.publisher_interface is not None:
             return
 
-        # Get appropriate scraper object
-        if self.scraper_obj is None:
-            self.make_scraper_obj()
-        if self.scraper_obj is None:
-            return None
-
-        # Using the string in self.scraper_obj, import the correct web-scraper
-        mod = __import__('pypub.publishers.pub_objects', fromlist=[self.scraper_obj])
-        interface_class = getattr(mod, self.scraper_obj)
-        interface = interface_class()
-
-        # Initialize scraper object with a DOI or URL
+        # Create publisher object and initialize with a DOI or URL
         if self.doi is not None:
-            interface.doi_or_url = self.doi
+            publisher = pub_resolve.publisher_from_doi(self.doi)
+            publisher.doi_or_url = self.doi
         elif self.url is not None:
-            interface.doi_or_url = self.url
+            publisher = pub_resolve.publisher_from_url(self.url)
+            publisher.doi_or_url = self.url
         else:
-            pass
-        self.publisher_interface = interface
+            publisher = None
+
+        self.publisher_interface = publisher
         return
-
-    def make_scraper_obj(self):
-        if self.doi is None and self.url is None:
-            self.scraper_obj = None
-            return
-
-        # Resolve DOI or URL through PyPub pub_resolve methods
-        try:
-            publisher_base_url, full_url = pub_resolve.get_publisher_urls(doi=self.doi, url=self.url)
-            pub_dict = pub_resolve.get_publisher_site_info(publisher_base_url)
-            self.scraper_obj = pub_dict.get('object')
-        except UnsupportedPublisherError:
-            self.scraper_obj = None
 
     def populate_info(self):
         input = self._make_input()

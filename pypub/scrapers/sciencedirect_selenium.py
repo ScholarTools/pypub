@@ -14,7 +14,7 @@ Status: In progress
 Tasks/Examples:
 ---------------
 1) ****** Get references given a pii value *******
-from pypub.scrapers import sciencedirect as sd 
+from pypub.scrapers import sciencedirect as sd
 
 refs = sd.get_references('0006899387903726',verbose=True)
 
@@ -67,11 +67,11 @@ _SD_URL = 'http://www.sciencedirect.com'
 class ScienceDirectAuthor(BaseAuthor):
     def __init__(self, li_tag):
         """
-        
+
         Example:
         <li class="author small" data-refs="aff1 aff2 aff3 cor1" id="au1">John Doe MD, MSc<sup> a,b,c,
         <a class="icon-correspondence-author" href="#cor1" id="r-cor1" title="Corresponding author contact information"> </a></sup></li>
-        
+
         Improvements
         ------------
         1) Allow retrieval of icon info:
@@ -89,7 +89,7 @@ class ScienceDirectAuthor(BaseAuthor):
         # <a class="icon-email-author"
         #
         # class="author-affiliations" id="augrp0010"
-        #   class="affiliation" id="aff1"        
+        #   class="affiliation" id="aff1"
 
         super().__init__()
 
@@ -156,60 +156,60 @@ class ScienceDirectAuthor(BaseAuthor):
 class ScienceDirectEntry(BaseEntry):
     """
     This could be a step above the reference since it would, for example,
-    contain all authors on a paper    
-    
+    contain all authors on a paper
+
     Attributes
     ----------
     pii : string
         The unique identifier
-        
+
     See Also
     --------
     ScienceDirectRef
-    
+
     Examples
     --------
-    from pypub.scrapers import sciencedirect as sd 
+    from pypub.scrapers import sciencedirect as sd
     url = 'http://www.sciencedirect.com/science/article/pii/S1042368013000776'
     #More affiliations
     url = 'http://www.sciencedirect.com/science/article/pii/S1042368013000818'
     sde = sd.ScienceDirectEntry(url,verbose=True)
-    
+
     Improvements
     ------------
     - Add citing articles
     - Add Recommended Articles
-    
+
     """
 
     def __init__(self, soup, verbose=False):
         super().__init__()
 
         # This div and id are mobile site specific
-        article_abstract = soup.find('div', id='article-abstract')
-        if article_abstract is None:
+        center_content = soup.find('div', id='centerContent')
+        if center_content is None:
             raise ParseException('Unable to find abstract section of page')
 
         # Things to get:
         # --------------
-        self.publication = findValue(article_abstract, 'a', 'publication-title', 'class')
+        self.publication = findValue(center_content, 'a', 'publication-title', 'class')
 
-        self.date = findValue(article_abstract, 'span', 'cover-date', 'class')
+        self.date = findValue(center_content, 'span', 'cover-date', 'class')
         self.year = self.date[-4:]
 
-        temp = findValue(article_abstract, 'p', 'publication-volume-issue', 'class')
+        temp = findValue(center_content, 'p', 'publication-volume-issue', 'class')
         self.volume = re.findall(', (.*?):', temp, re.DOTALL)
         self.volume = self.volume[0]
 
-        self.first_page = findValue(article_abstract, 'span', 'first-page', 'class')
-        self.last_page = findValue(article_abstract, 'span', 'last-page', 'class')
+        self.first_page = findValue(center_content, 'span', 'first-page', 'class')
+        self.last_page = findValue(center_content, 'span', 'last-page', 'class')
         self.pages = self.first_page + "-" + self.last_page
         # special_issue #p,publication-special-issue
 
         # Abstract
         # --------
         self.abstract = None
-        abstract_sections = article_abstract.find_all('section', {'class' : 'article-abstract'})
+        abstract_sections = center_content.find_all('section', {'class' : 'article-abstract'})
         for a in abstract_sections:
             if a.find('li') is not None:
                 continue
@@ -222,19 +222,19 @@ class ScienceDirectEntry(BaseEntry):
         # -------------
         # Could also graph href inside of the class and strip http://dx.doi.org/
         # This might be more reliable than assuming we have doi:asdfasdf
-        self.doi = findValue(article_abstract, 'span', 'article-doi', 'class')
+        self.doi = findValue(center_content, 'span', 'article-doi', 'class')
         if self.doi is not None:
             self.doi = self.doi[4:]  # doi:10.######### => remove 'doi":'
 
-        self.title = findValue(article_abstract, 'h1', 'article-title', 'class')
+        self.title = findValue(center_content, 'h1', 'article-title', 'class')
 
         # Authors:
         # -------
         # Look for <li> tags with class="author*"
         # TODO: Can move compiling to initialization
-        self.authors = [ScienceDirectAuthor(x) for x in article_abstract.find_all('li', class_=re.compile('^author'))]
+        self.authors = [ScienceDirectAuthor(x) for x in center_content.find_all('li', class_=re.compile('^author'))]
 
-        aff_tags = article_abstract.find_all('li', {'class' : 'affiliation'})
+        aff_tags = center_content.find_all('li', {'class' : 'affiliation'})
 
         if len(aff_tags) != 1:
             # ScienceDirect uses letter superscripts for author affiliations rather than numbers, making them
@@ -260,7 +260,7 @@ class ScienceDirectEntry(BaseEntry):
             for author in self.authors:
                 author.affiliations = aff_tags[0].text
 
-        keyword_tags = article_abstract.find_all('li', {'class': 'article-keyword'})
+        keyword_tags = center_content.find_all('li', {'class': 'article-keyword'})
         self.keywords = [x.text for x in keyword_tags]
 
     def __repr__(self):
@@ -285,18 +285,18 @@ class ScienceDirectEntry(BaseEntry):
 class ScienceDirectRef(BaseRef):
     """
     This is the result class of calling get_references. It contains the
-    bibliographic information about the reference, as well as additional meta 
+    bibliographic information about the reference, as well as additional meta
     information such as a DOI (if known).
-    
+
     Attributes:
     -----------
     ref_id : int
-        The index of the reference in the citing document. A value of 1 
+        The index of the reference in the citing document. A value of 1
         indicates that the reference is the first reference in the citing
         document.
     title : string
     authors : string
-        List of the authors. This list may be truncated if there are too many 
+        List of the authors. This list may be truncated if there are too many
         authors, e.g.: 'N. Zabihi, A. Mourtzinos, M.G. Maher, et al.'
     publication : string
         Abbreviated (typically?) form of the journal
@@ -304,38 +304,38 @@ class ScienceDirectRef(BaseRef):
     issue
     series
     date : string
-        This appears to always be the year but I'm not sure. More 
+        This appears to always be the year but I'm not sure. More
     pages
-    
+
     scopus_link       = None
     doi : string
         Digital Object Identifier. May be None if not present. This is
         currently based on the presence of a link to fulltext via Crossref.
     _data_sceid       = None
         I believe this is the Scopus ID
-    pii               = None 
+    pii               = None
         This is the ID used to identify an article on ScienceDirect.
         See also: https://en.wikipedia.org/wiki/Publisher_Item_Identifier
     pdf_link : string (default None)
         If not None, this link points to the pdf of the article.
-    scopus_cite_count = None    
-    
+    scopus_cite_count = None
+
     Improvements
     ------------
     1) Allow resolving the DOI via the pii
     2) Some references are not parsed properly by SD. As such the raw
     information should be stored as well in those cases, along with a flag
     indicating that this has occurred (e.g. see #71 for pii: S1042368013000776)
-        
-    
+
+
     See Also:
     get_references
-    
+
     """
 
     def __init__(self, ref_tags, ref_id, ref_link_info=None):
         """
-     
+
         Parameters:
         -----------
         ref_tags: bs4.element.Tag
@@ -347,8 +347,8 @@ class ScienceDirectRef(BaseRef):
         ref_id: int
             The id of the reference as ordered in the citing entry. A value
             of 1 indicates that this object is the first reference in the bibliography.
-            
-     
+
+
         """
         super().__init__()
 
@@ -362,8 +362,8 @@ class ScienceDirectRef(BaseRef):
         self.authors = [x.text for x in all_authors]
         #self.authors = findValue(ref_tags, 'li', 'reference-author', 'class')
         # NOTE: We can also get individual authors if we would like.
-        #        
-        #   Search would be on: 
+        #
+        #   Search would be on:
         #       <span class="reference-author">
         #   instead of on the list.
 
@@ -487,11 +487,11 @@ class ScienceDirectRef(BaseRef):
     def to_data_frame(self, all_entries):
         """
         Return a Pandas DataFrame
-        
+
         Parameters
         ----------
-        all_entries : [ScienceDirectRef]        
-        
+        all_entries : [ScienceDirectRef]
+
         Testing
         -------
         wtf = refs[0].to_data_frame(refs)
@@ -543,25 +543,25 @@ def get_references(input, verbose=False):
     """
     This function gets references for a Sciencedirect URL that is of the
     form:
-    
+
         http://www.sciencedirect.com/science/article/pii/################
-        
+
         e.g. http://www.sciencedirect.com/science/article/pii/0006899387903726
-        
-        
-        
-    
+
+
+
+
     Implementation Notes:
     ---------------------
     From what I can tell this information is not exposed via the Elsevier API.
-    
+
     In order to minimize complexity, the mobile site is requested: via a cookie.
 
 
-    
+
     Code Layout and Algorithm Notes:
     --------------------------------
-    
+
     """
 
     # TODO: Make this a class reference parser
@@ -630,7 +630,7 @@ def get_references(input, verbose=False):
     # about each reference, such as:
     #
     #   - links to the full text
-    #   - DOI   
+    #   - DOI
 
 
     # Step 3.1 - Make the request for the information
@@ -640,7 +640,7 @@ def get_references(input, verbose=False):
     #   SDM.pm.eid = "1-s2.0-0006899387903726"
     #
     #   * I think this entry gets deleted after the requests so it may not be
-    #   visible  if looking for it in Chrome. 
+    #   visible  if looking for it in Chrome.
     match = re.search('SDM\.pm\.eid\s*=\s*"([^"]+)"', resp.text)
     #eid = match.group(1)
 
@@ -666,7 +666,7 @@ def get_references(input, verbose=False):
     # for each reference.
     #
     # The script tag is of the form:
-    #   myMap['bibsbref11']['refHtml']= "<some html stuffs>"; 
+    #   myMap['bibsbref11']['refHtml']= "<some html stuffs>";
     #   myMap['bibsbref11']['absUrl']= "http://www.sciencedirect.com/science/absref/sd/0018506X7790068X";
     #   etc.
     #
@@ -688,7 +688,7 @@ def get_references(input, verbose=False):
     # Tokens:
     # 0 - the # from bibsbref#
     # 1 - the html content from the 'refHtml' entry
-    #    
+    #
     # NOTE: We don't really use the #, so we might remove the () around
     # \d+ which would shift the index from 1 to 0
     if verbose:
@@ -747,7 +747,7 @@ def get_references(input, verbose=False):
 def _update_counts(s, eids, resolve_url):
     """
     Helper for get_references()
-    
+
     Parameters
     ----------
     s : Session
@@ -757,7 +757,7 @@ def _update_counts(s, eids, resolve_url):
         e.g. ... TODO
     resolve_url : string
         This is a hardcoded value, eventually we'll pull this from the class
-    
+
     Returns
     -------
     """
@@ -874,8 +874,8 @@ def _connect(pii=None, url=None, verbose=None):
 
     page_content = _selenium_connect(url=article_url)
 
-    # with open('sd_test.html', 'w') as file:
-    #     file.write(page_content)
+    with open('sd_test.html', 'w') as file:
+        file.write(page_content)
 
     soup = BeautifulSoup(page_content)
 
@@ -892,11 +892,6 @@ def _selenium_connect(url):
 
     # Navigate to the ScienceDirect article
     driver.get(url)
-
-    # TODO: why does this not work
-    # Add a cookie for the mobile site
-    mobile_cookie = {'Site': 'Mobile'}
-    driver.add_cookie(mobile_cookie)
 
     # This is so that the javascript within each of the references will run
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")

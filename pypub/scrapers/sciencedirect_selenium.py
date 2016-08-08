@@ -49,6 +49,7 @@ from bs4 import BeautifulSoup
 import selenium
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 
 
@@ -409,12 +410,17 @@ class ScienceDirectRef(BaseRef):
 
         ref = ref_tags.find('ul', {'class': 'reference'})
 
+        if ref is None:
+            import pdb
+            pdb.set_trace()
+
         # Example str: <span class="r_volume">Volume 47</span>
         self.ref_id = ref_id + 1  # Input is 0 based
         self.title = findValue(ref, 'li', 'title', 'class')
 
         all_authors = ref_tags.find('li', {'class' : 'author'})
-        author_list = all_authors.split(', ')
+        author_text = all_authors.text
+        author_list = author_text.split(', ')
         self.authors = []
         for x in author_list:
             x = x.strip()
@@ -423,27 +429,42 @@ class ScienceDirectRef(BaseRef):
         # Unfortunately r_publication is found both for the title and for
         # the publication. Some custom code is needed to first go into a r_series
         # span and then to the publication
-        self.publication = None
-        self.volume = None
-        self.year = None
-        self.pages = None
+        self.publication = ''
+        self.volume = ''
+        self.date = ''
+        self.pages = ''
 
         source = ref.find('li', {'class': 'source'})
+        source = source.text
         source_parts = source.split(', ')
 
-        # This needs to be completed and properly parsed eventually
-        '''
-        # First case: 'Publisher, volume (date), pp. pages'
-        if len(source_parts) == 3:
-            self.publication = source_parts[0]
-            # Extract volume and date
-            paren = source_parts[1].find('(')
-            self.volume = source_parts[1][:paren].strip()
-            self.date = source_parts[1][paren+1:4]
-            # Extract
-        '''
+        # Attempt to parse publication into sections
+        found = 0
+        for elt in source_parts:
+            # This first part is looking for the date, which is written (xxxx).
+            # It is also saved as volume because they are within the same element
+            # and sometimes the volume is also in parentheses.
+            if '(' in elt:
+                found = 1
+                self.volume = elt
+                self.date = elt
 
-        self.publication = source
+            # Until the date/volume part is found, save everything before as publication.
+            # This can either be simple like 'Nature' or more complex, with a description
+            # and location, in which case, it would be multiple elements in source_parts.
+            if found == 0:
+                self.publication = self.publication + elt
+
+            # Find and save the pages portion, usually notated either with 'p. ' or 'pp. '
+            if 'p. ' in elt:
+                self.pages = elt
+                self.pages = self.pages.replace('p. ', '')
+                self.pages = self.pages.replace('p', '')
+
+        # This checks if the parsing didn't work. All of the information
+        # should still be retained even if not parsed correctly.
+        if self.date == '' and self.pages == '':
+            self.publication = source
 
 
         # Reference Meta Section:
@@ -515,7 +536,10 @@ class ScienceDirectRef(BaseRef):
                         raise Exception('Failed to match link')
 
         # Finally, update if it is not an article
-        tag_class = ref_tags.get('class')[0]
+        ref_tag_ul = ref_tags.find('ul')
+        tag_class = ref_tag_ul.get('class')
+        if tag_class is not None:
+            tag_class = tag_class[0]
         if tag_class == 'article-reference-other-ref':
             publication = ref_tags.find('em')
             if publication is not None:
@@ -647,8 +671,10 @@ def get_references(input, verbose=False):
 
     center_content = soup.find('div', {'id': 'centerContent'})
 
-    frag9 = center_content.find('div', {'id': 'frag_9'})
-    reference_sections = frag9.find_all('div', {'class': 'refText'})
+    # frag9 = center_content.find('div', {'id': 'frag_9'})
+    # reference_sections = frag9.find_all('div', {'class': 'refText'})
+
+    reference_sections = center_content.find_all('ol', {'class': 'references'})
 
     if reference_sections is None:
         # Then we might be a guest. In other words, we might not have sufficient
@@ -666,7 +692,8 @@ def get_references(input, verbose=False):
 
     ref_list = []
     for section in reference_sections:
-        ref_list.append(section.find_all('li'))
+        for ref in section.find_all('li', recursive=False):
+            ref_list.append(ref)
 
     n_refs = len(ref_list)
 
@@ -752,19 +779,22 @@ def get_references(input, verbose=False):
     if verbose:
         print('Creating reference objects')
 
-    if len(ref_match_result) > 0:
-        zipped = zip(ref_list, ref_match_result, range(n_refs))
-        ref_objects = [ScienceDirectRef(ref_tag, ref_link_info[1], ref_id) for
-                       ref_tag, ref_link_info, ref_id in zipped]
-    else:
+    if len(ref_list) > 0:
         zipped = zip(ref_list, range(n_refs))
         ref_objects = [ScienceDirectRef(ref_tag, ref_id) for
                        ref_tag, ref_id in zipped]
+    # else:
+    #     zipped = zip(ref_list, range(n_refs))
+    #     ref_objects = [ScienceDirectRef(ref_tag, ref_id) for
+    #                    ref_tag, ref_id in zipped]
+    else:
+        ref_objects = []
 
     # Step 4:
     # --------------------------------------------------------------------------
     # TODO: Improve documentation for this step
 
+    '''
     if verbose:
         print('Retrieving Scopus Counts')
 
@@ -796,6 +826,7 @@ def get_references(input, verbose=False):
         ref_id = int(ref_tuple[0]) - 1
         ref_count = int(ref_tuple[1])
         ref_objects[ref_id].scopus_cite_count = ref_count
+    '''
 
     # All done!
     # ---------
@@ -953,14 +984,12 @@ def _selenium_connect(url):
     # Navigate to the ScienceDirect article
     driver.get(url)
 
-    # This is so that the javascript within each of the references will run
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    # Find the References link and click on it so that section loads
+    ref_link = driver.find_element_by_link_text('References')
+    ref_link.click()
 
-    # TODO: figure out a trigger for stopping the wait.
-    # Somehow detect if any of the relevant javascript elements
-    # are even running?
     try:
-        WebDriverWait(driver, 10)
+        WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.ID, 'refText')))
         page_content = driver.page_source
     except TimeoutException:
         page_content = driver.page_source

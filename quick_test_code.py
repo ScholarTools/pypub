@@ -67,13 +67,16 @@ sd_link = 'http://www.sciencedirect.com/science/article/pii/0006899387903726'
 sd_pii = 'S0006899313013048'
 
 sd_link = 'http://www.sciencedirect.com/science/article/pii/S0092867413004674'
-sd_link = 'http://www.sciencedirect.com/science/article/pii/S0004370216300261'
+# sd_link = 'http://www.sciencedirect.com/science/article/pii/S0004370216300261'
 
 # entry = sd.get_entry_info(sd_link, verbose=True)
 # print(entry)
 
 refs = sd.get_references(sd_link, verbose=True)
 print(refs[0])
+
+import pdb
+pdb.set_trace()
 
 
 # Wiley

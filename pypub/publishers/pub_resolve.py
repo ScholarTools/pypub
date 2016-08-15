@@ -57,6 +57,15 @@ def get_publisher_urls(doi=None, url=None):
 '''
 
 
+def publisher_from_doi_or_url(doi=None, url=None):
+    if doi is not None:
+        return publisher_from_doi(doi)
+    elif url is not None:
+        return publisher_from_url(url)
+    else:
+        raise KeyError('Need to enter a DOI or URL to retrieve publisher information.')
+
+
 def publisher_from_doi(doi):
     if xref.is_valid(doi):
         resp = requests.get('http://dx.doi.org/' + doi)

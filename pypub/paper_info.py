@@ -62,7 +62,7 @@ class PaperInfo(BasePaperInfo):
             input = self.doi
         return input
 
-    @property
+    # @property
     def get_entry_info(self):
         input = self._make_input()
         if self.publisher_interface is not None:
@@ -73,7 +73,7 @@ class PaperInfo(BasePaperInfo):
         else:
             return None
 
-    @property
+    # @property
     def get_references(self):
         input = self._make_input()
         if self.publisher_interface is not None:
@@ -84,7 +84,7 @@ class PaperInfo(BasePaperInfo):
         else:
             return None
 
-    @property
+    # @property
     def get_pdf_link(self):
         input = self._make_input()
         if self.publisher_interface is not None:

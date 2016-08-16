@@ -93,30 +93,30 @@ class ScienceDirect(Publisher):
         super().__init__()
 
         # Import the appropriate scraper and set it as self.scraper
-        import pypub.scrapers.sciencedirect as sd
-        self.scraper = sd
+        import pypub.scrapers.sciencedirect_selenium as sds
+        self.scraper = sds
 
     # Need to overload these functions because ScienceDirect scraper
     # can't handle DOI inputs - needs either PII or URL
     def get_entry_info(self, doi_or_url=None, verbose=False):
         
-        driver = webdriver.Chrome()
+        # driver = webdriver.Chrome()
 
-        import pdb
-        pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         
-        if 'sciencedirect' not in doi_or_url:
-            doi_or_url = self._doi_to_link(doi_or_url)
+        # if 'sciencedirect' not in doi_or_url:
+        #     doi_or_url = self._doi_to_link(doi_or_url)
         return self.scraper.get_entry_info(doi_or_url, verbose=verbose)
 
     def get_references(self, doi_or_url=None, verbose=False):
-        if 'sciencedirect' not in doi_or_url:
-            doi_or_url = self._doi_to_link(doi_or_url)
+        # if 'sciencedirect' not in doi_or_url:
+        #     doi_or_url = self._doi_to_link(doi_or_url)
         return self.scraper.get_references(doi_or_url, verbose=verbose)
 
     def get_pdf_link(self, doi_or_url=None):
-        if 'sciencedirect' not in doi_or_url:
-            doi_or_url = self._doi_to_link(doi_or_url)
+        # if 'sciencedirect' not in doi_or_url:
+        #     doi_or_url = self._doi_to_link(doi_or_url)
         return self.scraper.get_pdf_link(doi_or_url)
 
     def get_pdf_content(self, pdf_url=None, doi_or_url=None):
@@ -135,9 +135,9 @@ class ScienceDirect(Publisher):
 
         return _extract_content(resp, soup_tag, link_loc)
 
-    def _doi_to_link(self, doi):
-        _, link = pub_resolve.get_publisher_urls(doi=doi)
-        return link
+    # def _doi_to_link(self, doi):
+    #     _, link = pub_resolve.get_publisher_urls(doi=doi)
+    #     return link
 
 
 class Springer(Publisher):

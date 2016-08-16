@@ -50,7 +50,7 @@ import selenium
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 
 # Local imports
@@ -281,7 +281,8 @@ class ScienceDirectEntry(BaseEntry):
                 if script is None:
                     aff_names.append(str(x.contents[0]))
                 else:
-                    superscripts.append(x.find('sup').text)
+                    if x.find('sup') is not None:
+                        superscripts.append(x.find('sup').text)
                     aff_names.append(script.text)
 
             aff_dict = dict(zip(superscripts, aff_names))
@@ -562,36 +563,6 @@ class ScienceDirectRef(BaseRef):
                 doi = doi_link[doi_link.find('dx.doi.org/') + 11:]
         return doi
 
-    '''
-    def to_data_frame(self, all_entries):
-        """
-        Return a Pandas DataFrame
-
-        Parameters
-        ----------
-        all_entries : [ScienceDirectRef]
-
-        Testing
-        -------
-        wtf = refs[0].to_data_frame(refs)
-        """
-
-        c_attr = ['ref_id', 'title', 'authors', 'publication', 'volume', 'issue',
-                  'series', 'date', 'pages', 'volume', 'scopus_link', 'doi', 'pii',
-                  'pdf_link', 'scopus_cite_count']
-        all_data = []
-        for entry in all_entries:
-            all_data.append([getattr(entry, x) for x in c_attr])
-
-        return pd.DataFrame(all_data, columns=c_attr)
-
-    def get_simple_string(self):
-        # TODO: Implement
-        # The goal is to represent the object as a single string
-        # Essentially as a citation
-        pass
-    '''
-
     def __repr__(self):
         return u'' + \
                '           ref_id: %s\n' % self.ref_id + \
@@ -653,21 +624,9 @@ def get_references(input, verbose=False):
     REF_RESOLVER_URL = _SD_URL + '/science/referenceResolution/ajaxRefResol'
 
     # Return the BeautifulSoup result, the requests session, and the requests response
-    if _is_url(input):
-        pii = _extract_pii(input)
-    else:
-        pii = input
-
-    if verbose:
-        print('Requesting main page for pii: %s' % pii)
-
-    url = base_url + pii
-
-    page_content = _selenium_connect(url=url)
+    soup = _make_soup(input=input)
 
     # Step 2 - Get the reference tags
-
-    soup = BeautifulSoup(page_content)
 
     center_content = soup.find('div', {'id': 'centerContent'})
 
@@ -945,28 +904,11 @@ def _connect(pii=None, url=None, verbose=None):
 
     # Web page retrieval
     # -------------------
-    '''
-    sess = requests.Session()
-
-    if verbose:
-        print('Requesting main page for doi: %s' % pii)
-
-    # Using the mobile version of ScienceDirect
-    # This is to avoid dynamically loading page features on the desktop site
-    # and because the mobile site has more cleanly organized information
-    resp = sess.get(article_url, cookies={'Site': 'Mobile'})
-
-    if not resp.ok:
-        if resp.status_code == 404:
-            raise ConnectionError('Could not locate page info - 404 Error')
-        else:
-            raise ConnectionError('Could not connect to article page.')
-    '''
 
     page_content = _selenium_connect(url=article_url)
 
-    with open('sd_test.html', 'w') as file:
-        file.write(page_content)
+    # with open('sd_test.html', 'w') as file:
+    #     file.write(page_content)
 
     soup = BeautifulSoup(page_content)
 
@@ -985,7 +927,18 @@ def _selenium_connect(url):
     driver.get(url)
 
     # Find the References link and click on it so that section loads
-    ref_link = driver.find_element_by_link_text('References')
+    collapsed_menu = driver.find_element_by_class_name('outline-toggle')
+    if collapsed_menu.get_attribute('aria-expanded') == 'false':
+        collapsed_menu.click()
+
+    try:
+        ref_link = driver.find_element_by_link_text('References')
+    except NoSuchElementException:
+        try:
+            ref_link = driver.find_element_by_link_text('REFERENCES')
+        except NoSuchElementException:
+            raise ParseException('Unable to find references on page.')
+
     ref_link.click()
 
     try:
@@ -993,7 +946,6 @@ def _selenium_connect(url):
         page_content = driver.page_source
     except TimeoutException:
         page_content = driver.page_source
-        pass
 
     finally:
         driver.quit()

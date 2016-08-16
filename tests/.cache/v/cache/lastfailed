@@ -1,7 +1,7 @@
 {
-  "sd_test.py::test_sd_saved_entry": true,
-  "sd_test.py::test_sd_saved_refs": true,
+  "sd_test.py": true,
   "springer_test.py::test_springer_saved_entry": true,
   "springer_test.py::test_springer_saved_refs": true,
-  "wiley_test.py::test_wiley_saved_entry": true
+  "wiley_test.py::test_wiley_saved_entry": true,
+  "wiley_test.py::test_wiley_saved_refs": true
 }

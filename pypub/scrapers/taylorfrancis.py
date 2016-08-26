@@ -3,11 +3,10 @@
 
 Module: pypub.scrapers.taylorfrancis
 
-Status: In progress
+
+NOTE: THIS IS FOR A DEPRECATED VERSION OF T&F!! THE HTML TAGS NEED TO BE CHANGED.
 
 
-#TODO: Add tests, this stuff will break!
-#TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
 
 Tasks/Examples:
 ---------------
@@ -27,18 +26,7 @@ a URL.
 """
 # Standard imports
 import sys
-
 import os
-
-#TODO: Move this into a compatability module
-#-----------------------------------------------------
-PY2 = sys.version_info.major == 2
-
-if PY2:
-    pass
-else:
-    pass
-#-----------------------------------------------------
 
 # Third party imports
 import requests
@@ -52,6 +40,7 @@ from pypub.pypub_errors import *
 from pypub.scrapers.base_objects import *
 
 _TF_URL = 'http://tandfonline.com/'
+
 
 class TaylorFrancisAuthor(BaseAuthor):
 
@@ -132,20 +121,25 @@ class TaylorFrancisEntry(BaseEntry):
         super().__init__()
 
         # Get entry content information
-        mainContent = soup.find('div', {'id' : 'journal_content'})
+        mainContent = soup.find('div', {'id': 'journal_content'})
+        if mainContent is None:
+            mainContent = soup.find('div', {'id': 'pb-page-content'})
         if mainContent is None:
             raise ParseException('Unable to find main content of page')
 
         # Metadata:
         # ---------
-        titlebox = mainContent.find('div', {'class' : 'description'})
+        titlebox = mainContent.find('div', {'class': 'description'})
         if titlebox is not None:
             self.title = titlebox.find('h1').text.title()
         else:
             self.title = None
 
+        import pdb
+        pdb.set_trace()
+
         # This box contains the publication name as well as Volume and Issue
-        pubbox = mainContent.find('div', {'class' : 'borderedmodule'})
+        pubbox = mainContent.find('div', {'class': 'borderedmodule'})
         pubbox = pubbox.find('td')
         self.publication = findValue(pubbox, 'h2')
         if self.publication is not None:

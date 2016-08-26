@@ -461,8 +461,9 @@ def get_pdf_link(input, verbose=False, soup=None):
     if soup is None:
         soup = make_soup(input, verbose)
 
-    dropdown = soup.find('div', {'class' : 'button-dropdown--linkgroup'})
-    pdf_link = dropdown.find('a', {'title' : 'Download this article in PDF format'})['href']
+    pdf_link = soup.find('a', {'title' : 'Download this article in PDF format'})['href']
+    if pdf_link is not None:
+        pdf_link = _SP_URL + pdf_link
     return pdf_link
 
 
@@ -490,6 +491,7 @@ def is_url(input):
         return True
     else:
         return False
+
 
 def is_doi(input):
     if input.find('10.') == 0:

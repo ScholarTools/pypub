@@ -7,19 +7,19 @@ import pickle
 import nose
 
 # Local imports
-from pypub.scrapers import sciencedirect_selenium as sd
+from pypub.scrapers import nature_nrg as nrg
 from pypub.paper_info import PaperInfo
 
 
-class TestScienceDirect(object):
+class TestNature(object):
     def __init__(self):
         self.curpath = str(os.path.dirname(os.path.abspath(__file__)))
-        self.link = 'http://www.sciencedirect.com/science/article/pii/S0006899313013048'
-        self.doi = 'S0006899313013048'
+        self.link = 'http://www.nature.com/nrg/journal/v15/n5/full/nrg3686.html'
+        self.doi = '10.1038/nrg3686'
 
         # Make a PaperInfo object from the live site information
         try:
-            pi = PaperInfo(url=self.link, doi=self.doi, scraper_obj='sciencedirect')
+            pi = PaperInfo(url=self.link, doi=self.doi, scraper_obj='nature')
             pi.populate_info()
         except Exception:
             self.pi = None
@@ -38,16 +38,16 @@ class TestScienceDirect(object):
 
     # Testing return types
     def test_entry_type(self):
-        assert type(self.pi.entry) is sd.ScienceDirectEntry
+        assert type(self.pi.entry) is nrg.NatureEntry
 
     def test_references_type(self):
         assert type(self.pi.references) is list
 
     def test_reflist_type(self):
-        assert type(self.pi.references[0]) is sd.ScienceDirectRef
+        assert type(self.pi.references[0]) is nrg.NatureRef
 
     # Testing scraped soup against saved site version
-    def test_sciencedirect_saved_entry(self):
+    def test_nature_saved_entry(self):
         for x in self.saved_entry_dict.keys():
             if x == 'authors':
                 continue
@@ -78,7 +78,7 @@ class TestScienceDirect(object):
                 assert False
         assert True
 
-    def test_sciencedirect_saved_refs(self):
+    def test_nature_saved_refs(self):
         for y in range(len(self.pi.references)):
             saved_ref_dict = self.saved_pi.references[y].__dict__
             live_ref_dict = self.pi.references[y].__dict__
@@ -94,7 +94,7 @@ class TestScienceDirect(object):
                     assert False
         assert True
 
-    def test_sciencedirect_pdf_link(self):
+    def test_nature_pdf_link(self):
         if self.pi.pdf_link != self.saved_pi.pdf_link:
             assert False
         else:
@@ -105,5 +105,3 @@ if __name__ == '__main__':
     module_name = sys.modules[__name__].__file__
 
     result = nose.run(argv=[sys.argv[0], module_name, '-v'])
-
-

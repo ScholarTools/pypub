@@ -50,7 +50,7 @@ import selenium
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementNotVisibleException
 
 
 # Local imports
@@ -841,10 +841,10 @@ def get_entry_info(input, verbose=False, soup=None):
 
 def get_pdf_link(input, verbose=False, soup=None):
     if soup is None:
-        soup, _, _ = _make_soup(input, verbose)
+        soup = _make_soup(input, verbose)
 
-    navbar = soup.find('ul', {'class' : 'navigation'})
-    pdf_link = navbar.find('a', {'id' : 'pdfLink'})['href']
+    # navbar = soup.find('ul', {'class': 'navigation'})
+    pdf_link = soup.find('a', {'id': 'pdfLink'})['href']
     return pdf_link
 
 
@@ -929,7 +929,10 @@ def _selenium_connect(url):
     # Find the References link and click on it so that section loads
     collapsed_menu = driver.find_element_by_class_name('outline-toggle')
     if collapsed_menu.get_attribute('aria-expanded') == 'false':
-        collapsed_menu.click()
+        try:
+            collapsed_menu.click()
+        except ElementNotVisibleException:
+            pass
 
     try:
         ref_link = driver.find_element_by_link_text('References')

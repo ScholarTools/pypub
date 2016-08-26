@@ -1,69 +1,107 @@
-from pypub.scrapers import springer as sp
-from pypub.utils import convert_to_dict
-import json
+# Standard imports
 import os
+import sys
+import pickle
 
-curpath = str(os.path.dirname(os.path.abspath(__file__)))
+# Third party imports
+import nose
 
-# Sample journal article
-link = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
-pii = '10.1186/s12984-016-0150-9'
-
-# Run scraper on live site
-entry = sp.get_entry_info(link)
-refs = sp.get_references(pii)
-
-# Make scraped entry into a dict
-entry_dict = convert_to_dict(entry)
-
-# Make a list of refs as dict objects
-refs_dicts = []
-for x in range(len(refs)):
-    refs_dicts.append(convert_to_dict(refs[x]))
-
-# Load cached version of content and references
-with open(curpath + '/saved_sites/sp_entry.txt') as fe:
-    saved_entry = fe.read()
-
-with open(curpath + '/saved_sites/sp_references.txt') as fr:
-    saved_refs = fr.read()
-
-saved_entry = json.loads(saved_entry)
-saved_refs = json.loads(saved_refs)
-
-# ----------------------
-
-# Testing return types
-def test_entry_type():
-    assert type(entry) is sp.SpringerEntry
-
-def test_references_type():
-    assert type(refs) is list
-
-def test_reflist_type():
-    assert type(refs[0]) is sp.SpringerRef
+# Local imports
+from pypub.scrapers import springer as sp
+from pypub.paper_info import PaperInfo
 
 
-# Testing scraped soup against saved site version
-def test_springer_saved_entry():
-    for x in saved_entry.keys():
-        if saved_entry[x] != entry_dict[x]:
-            print('\nDifference found.')
-            print('Key: ' + str(x))
-            print('Saved value: ' + str(saved_entry[x]))
-            print('Live value: ' + str(entry_dict[x]))
-            assert False
-    assert True
+class TestSpringer(object):
+    def __init__(self):
+        self.curpath = str(os.path.dirname(os.path.abspath(__file__)))
+        self.link = 'http://link.springer.com/article/10.1186/s12984-016-0150-9'
+        self.doi = '10.1186/s12984-016-0150-9'
 
-def test_springer_saved_refs():
-    for y in range(len(saved_refs)):
-        for x in saved_refs[y].keys():
-            if saved_refs[y][x] != refs_dicts[y][x]:
+        # Make a PaperInfo object from the live site information
+        try:
+            pi = PaperInfo(url=self.link, doi=self.doi, scraper_obj='Springer')
+            pi.populate_info()
+        except Exception:
+            self.pi = None
+            self.entry_dict = None
+        else:
+            self.pi = pi
+            self.entry_dict = self.pi.entry.__dict__
+
+        # Load saved version of the PaperInfo object
+        saved_dir = os.path.join(self.curpath, 'saved_info')
+        saved_file_path = os.path.join(saved_dir, 'sp_info.txt')
+        self.saved_pi = pickle.load(open(saved_file_path, 'rb'))
+
+        # Make the saved versions into dicts
+        self.saved_entry_dict = self.saved_pi.entry.__dict__
+
+    # Testing return types
+    def test_entry_type(self):
+        assert type(self.pi.entry) is sp.SpringerEntry
+
+    def test_references_type(self):
+        assert type(self.pi.references) is list
+
+    def test_reflist_type(self):
+        assert type(self.pi.references[0]) is sp.SpringerRef
+
+    # Testing scraped soup against saved site version
+    def test_springer_saved_entry(self):
+        for x in self.saved_entry_dict.keys():
+            if x == 'authors':
+                continue
+            if self.saved_entry_dict[x] != self.entry_dict[x]:
                 print('\nDifference found.')
                 print('Key: ' + str(x))
-                print('Saved value: ' + str(saved_refs[y][x]))
-                print('Live value: ' + str(refs_dicts[y][x]))
+                print('Saved value: ' + str(self.saved_entry_dict[x]))
+                print('Live value: ' + str(self.entry_dict[x]))
                 assert False
-    assert True
+
+        # Compare authors separately
+        live_authors = self.pi.entry.authors
+        saved_authors = self.saved_pi.entry.authors
+
+        # First check number of authors
+        if len(live_authors) != len(saved_authors):
+            assert False
+
+        # Then make sure the values of each author object are equal
+        for z in enumerate(live_authors):
+            live = z[1]
+            saved = saved_authors[z[0]]
+            if live.__dict__ != saved.__dict__:
+                print('\nDifference found.')
+                print('Key: authors')
+                print('Saved value: ' + str(saved))
+                print('Live value: ' + str(live))
+                assert False
+        assert True
+
+    def test_springer_saved_refs(self):
+        for y in range(len(self.pi.references)):
+            saved_ref_dict = self.saved_pi.references[y].__dict__
+            live_ref_dict = self.pi.references[y].__dict__
+            for x in live_ref_dict.keys():
+                if saved_ref_dict[x] != saved_ref_dict[x]:
+                    print('\nDifference found.')
+                    print('Key: ' + str(x))
+                    print('Saved value: ' + str(self.saved_pi.references[y]))
+                    print('Live value: ' + str(self.pi.references[y]))
+                    print('Specific difference:')
+                    print('Saved value: ' + str(saved_ref_dict[x]))
+                    print('Live value: ' + str(live_ref_dict[x]))
+                    assert False
+        assert True
+
+    def test_springer_pdf_link(self):
+        if self.pi.pdf_link != self.saved_pi.pdf_link:
+            assert False
+        else:
+            assert True
 
 
+if __name__ == '__main__':
+    module_name = sys.modules[__name__].__file__
+
+    result = nose.run(argv=[sys.argv[0], module_name, '-v'])

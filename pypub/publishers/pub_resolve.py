@@ -1,18 +1,23 @@
 """
 
+from pypub.publishers import pub_resolve
+
 """
 
 # Standard imports
+#--------------------------
 import csv
 
 # Third party imports
+#--------------------------
 import requests
 
 # Local imports
+#--------------------------
 from pypub.pypub_errors import *
 from pypub import utils
 
-from . import site_features_file
+from . import site_features_file_path
 
 from crossref import doi as xref
 
@@ -80,6 +85,27 @@ def publisher_from_doi(doi):
 
 
 def publisher_from_url(url):
+    """
+    
+
+    Parameters
+    ----------
+    url : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    publisher : TYPE
+        DESCRIPTION.
+        
+    Example
+    -------
+    from pypub.publishers import pub_resolve
+    url = 'https://onlinelibrary.wiley.com/doi/10.1002/nau.1930090206'
+    publisher = pub_resolve.publisher_from_url(url)
+
+
+    """
     resp = requests.get(url)
     pub_url = resp.url
     base_url = _extract_base_url(pub_url)
@@ -120,8 +146,26 @@ def _create_publisher_interface(base_url):
 
 
 def get_publisher_site_info(base_url):
+    """
+    
+    Parameters
+    ----------
+    base_url : TYPE
+        What is this?
+
+    Raises
+    ------
+    UnsupportedPublisherError
+        DESCRIPTION.
+
+    Returns
+    -------
+    pub_dict : TYPE
+        DESCRIPTION.
+
+    """
     # Search the site_features.csv file to get information relevant to that provider
-    with open(site_features_file) as f:
+    with open(site_features_file_path) as f:
         reader = csv.reader(f)
         headings = next(reader)  # Save the first line as the headings
         values = None

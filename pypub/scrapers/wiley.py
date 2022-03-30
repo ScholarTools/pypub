@@ -7,7 +7,8 @@ Module: pypub.scrapers.wiley
 Status: In progress
 
 #TODO: Add tests, this stuff will break!
-#TODO: Allow extraction of the refs as a csv,json,xml, etc - this might go into utils
+#TODO: Allow extraction of the refs as a csv,json,xml, etc - this might 
+    go into utils
 
 #TODO: STANDARDIZE THE FUNCTION INPUTS!!!
      - Either get references and get entry info both using a URL as the input, or
@@ -18,9 +19,8 @@ Tasks/Examples:
 1) ****** Get references given a doi value *******
 from pypub.scrapers import wiley as wy
 
-refs = wy.get_references('0006899387903726',verbose=True)
+refs = wy.get_references('10.1002/biot.201400046',verbose=True)
 
-refs = wy.get_references('S1042368013000776',verbose=True)
 
 df = refs[0].to_data_frame(refs)
 
@@ -31,6 +31,7 @@ a Wiley URL.
 
 """
 # Standard imports
+#----------------------------------------
 import sys
 
 import os
@@ -44,18 +45,20 @@ else:
     from urllib.parse import quote as urllib_quote
 
 # Third party imports
+#-------------------------------------------
 import requests
 from bs4 import BeautifulSoup
 
 # Local imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+#------------------------------------
+#sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pypub.utils import get_truncated_display_string as td
 from pypub.utils import findValue
 from pypub.utils import convert_to_dict
 from pypub.pypub_errors import *
-from pypub.scrapers.base_objects import *
+from pypub.scrapers.base_objects import BaseAuthor, BaseEntry, BaseRef
 
-_WY_URL = 'http://onlinelibrary.wiley.com'
+_WY_URL = 'https://onlinelibrary.wiley.com'
 
 class WileyAuthor(BaseAuthor):
 
@@ -301,7 +304,8 @@ class WileyRef(BaseRef):
             needed in order to form a citation for the given reference.
         ref_id: int
             The id of the reference as ordered in the citing entry. A value
-            of 1 indicates that this object is the first reference in the bibliography.
+            of 0 indicates that this object is the first reference in 
+            the bibliography.
 
 
         """
@@ -406,7 +410,7 @@ class WileyRef(BaseRef):
         'web of science times cited: %s\n' % self.citetimes
 
 
-def get_references(input, verbose=False):
+def get_references(doi_or_url, verbose=False):
     """
     This function gets references for a Wiley URL that is of the
     form:
@@ -427,7 +431,7 @@ def get_references(input, verbose=False):
 
     # TODO: check what this guest tag actually looks like
     # When we don't have proper access rights, this is present in the html
-    GUEST_TAG = ('li', {'id' : 'menuGuest'})
+    GUEST_TAG = ('div', {'id' : 'acessDenialslot'})
 
     # Entries are "li" tags with ids of the form:
     #   b1, b2, b3, etc.
@@ -436,7 +440,7 @@ def get_references(input, verbose=False):
 
     # Step 1 - Make the request
     #--------------------------------------------------------------------------
-    soup = make_soup(input, 'references', verbose)
+    soup = get_page_soup(doi_or_url, 'references', verbose)
 
     # Step 2 - Get the references tags
     #--------------------------------------------------------------------------
@@ -453,9 +457,12 @@ def get_references(input, verbose=False):
         # that I can access the data :/
         print("reference_section is None")
         temp = soup.find(*GUEST_TAG)
+        import pdb
+        pdb.set_trace()
         if temp is None:
             #We might have no references ...
             return []
+            #TODO: Should probably have warning...
             #raise ParseException("References were not found")
         else:
             raise InsufficientCredentialsException("Insufficient access rights to get referencs, requires certain IP addresses (e.g. university based IP)")
@@ -531,7 +538,7 @@ def get_pdf_link(input):
 
 def get_entry_info(input, verbose=False, soup=None):
     if soup is None:
-        soup = make_soup(input, 'entry', verbose)
+        soup = get_page_soup(input, 'entry', verbose)
     return WileyEntry(soup, verbose)
 
 
@@ -566,12 +573,12 @@ def get_all_info(input, verbose=False):
     pass
 
 
-def make_soup(input, type, verbose=False):
+def get_page_soup(doi_or_url, type, verbose=False):
     # Check if the input is a DOI or URL
-    if is_url(input):
-        doi = extract_doi(input)
-    elif is_doi(input):
-        doi = input
+    if is_url(doi_or_url):
+        doi = extract_doi(doi_or_url)
+    elif is_doi(doi_or_url):
+        doi = doi_or_url
     else:
         raise ValueError('Input not recognized as a valid DOI or Wiley URL')
 
@@ -581,20 +588,38 @@ def make_soup(input, type, verbose=False):
     return soup
 
 
-def is_url(input):
-    if input.find('wiley') != -1:
+def is_url(doi_or_url):
+    if doi_or_url.find('wiley') != -1:
         return True
     else:
         return False
 
-def is_doi(input):
-    if input.find('10.') == 0:
+def is_doi(doi_or_url):
+    if doi_or_url.find('10.') == 0:
         return True
     else:
         return False
 
 
 def extract_doi(url):
+    """
+    
+    Parameters
+    ----------
+    url : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    doi : TYPE
+        DESCRIPTION.
+        
+        
+    Examples
+    --------
+    
+
+    """
     # First check to see which version of the URL is being used, and get ending.
     # Wiley separates info into multiple tabs, each with a unique URL
     # ending in /abstract, /references, or /citedby.
@@ -610,12 +635,32 @@ def extract_doi(url):
 
 
 def connect(doi, type, verbose=None):
+    """
+    
+
+    Parameters
+    ----------
+    doi : TYPE
+        DESCRIPTION.
+    type : TYPE
+        - 'references'
+        - 'entry'
+    verbose : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    soup : TYPE
+        DESCRIPTION.
+
+    """
     # Add the correct URL suffix:
     if type == 'references':
         suffix = '/references'
     elif type == 'entry':
         suffix = '/abstract'
     else:
+        #??????
         suffix = None
 
     # Construct valid Wiley URL from given DOI
@@ -640,9 +685,13 @@ def connect(doi, type, verbose=None):
     if backlink is not None:
         url = _WY_URL + '/wol1/doi/' + doi + suffix
         r = requests.session().get(url)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text,features="lxml")
 
     #with open('wiley_test.html', 'wb') as file:
     #    file.write(r.content)
+    
+    
+    #When not found we get:
+    #The page you were looking for has not been found
 
     return soup

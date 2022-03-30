@@ -1,8 +1,10 @@
 """
-This function is to parse all of the DOI prefixes and their associated publishers from the table kept at
+This function is to parse all of the DOI prefixes and their associated 
+publishers from the table kept at
 http://www.crossref.org/06members/50go-live.html
 
-This program is accessing the table on May 12, 2016. Website states 'last updated on May 12, 2016.'
+This program is accessing the table on May 12, 2016. Website states 
+'last updated on May 12, 2016.'
 
 Creates and saves three things:
     1) full_prefix_table.csv
